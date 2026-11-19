@@ -1,0 +1,6 @@
+{
+  "name": "As-Siddique Islamic Academy",
+  "description": "Educational website for As-Siddique Islamic Academy offering integrated Class 1 to Class 12 General and Islamic Education, Live Online Classes, Faculty Directory, Notice Board, and Admissions.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

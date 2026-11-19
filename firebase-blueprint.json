@@ -1,0 +1,629 @@
+{
+  "entities": {
+    "UserAccount": {
+      "title": "UserAccount",
+      "description": "Authenticated user account and RBAC role assignment.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "email": { "type": "string", "maxLength": 160 },
+        "displayName": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "role": {
+          "type": "string",
+          "enum": ["super_admin", "admin", "principal", "teacher", "accountant", "student", "parent", "librarian", "staff"]
+        },
+        "status": { "type": "string", "enum": ["active", "deactivated"] },
+        "linkedStudentId": { "type": "string", "maxLength": 128 },
+        "linkedParentId": { "type": "string", "maxLength": 128 },
+        "linkedTeacherId": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "displayName", "role", "status", "createdAt", "updatedAt"]
+    },
+    "RoleDefinition": {
+      "title": "RoleDefinition",
+      "description": "Configurable RBAC role metadata.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 64 },
+        "label": { "type": "string", "maxLength": 80 },
+        "description": { "type": "string", "maxLength": 300 },
+        "permissions": { "type": "array" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "label", "permissions"]
+    },
+    "PermissionItem": {
+      "title": "PermissionItem",
+      "description": "Granular system permission record.",
+      "type": "object",
+      "properties": {
+        "key": { "type": "string", "maxLength": 80 },
+        "module": { "type": "string", "maxLength": 80 },
+        "description": { "type": "string", "maxLength": 240 }
+      },
+      "required": ["key", "module"]
+    },
+    "InstitutionSettings": {
+      "title": "InstitutionSettings",
+      "description": "Configurable public institution profile and CMS content.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "maxLength": 160 },
+        "tagline": { "type": "string", "maxLength": 120 },
+        "location": { "type": "string", "maxLength": 160 },
+        "boardName": { "type": "string", "maxLength": 160 },
+        "address": { "type": "string", "maxLength": 300 },
+        "phone": { "type": "string", "maxLength": 60 },
+        "email": { "type": "string", "maxLength": 160 },
+        "registrationNote": { "type": "string", "maxLength": 240 },
+        "heroHeadline": { "type": "string", "maxLength": 200 },
+        "heroSubtext": { "type": "string", "maxLength": 600 },
+        "aboutContent": { "type": "string", "maxLength": 3000 },
+        "visionText": { "type": "string", "maxLength": 1500 },
+        "missionText": { "type": "string", "maxLength": 1500 },
+        "principalName": { "type": "string", "maxLength": 120 },
+        "principalMessage": { "type": "string", "maxLength": 3000 },
+        "footerNote": { "type": "string", "maxLength": 400 },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "tagline", "location", "boardName"]
+    },
+    "AdmissionApplication": {
+      "title": "AdmissionApplication",
+      "description": "Online or offline student admission request.",
+      "type": "object",
+      "properties": {
+        "applicationNumber": { "type": "string", "minLength": 4, "maxLength": 40 },
+        "studentName": { "type": "string", "minLength": 2, "maxLength": 120 },
+        "dob": { "type": "string", "maxLength": 30 },
+        "gender": { "type": "string", "enum": ["Male", "Female"] },
+        "fatherName": { "type": "string", "maxLength": 120 },
+        "motherName": { "type": "string", "maxLength": 120 },
+        "guardianName": { "type": "string", "maxLength": 120 },
+        "mobile": { "type": "string", "minLength": 6, "maxLength": 30 },
+        "email": { "type": "string", "maxLength": 160 },
+        "address": { "type": "string", "maxLength": 400 },
+        "previousSchool": { "type": "string", "maxLength": 160 },
+        "previousClass": { "type": "string", "maxLength": 60 },
+        "applyingClass": { "type": "string", "maxLength": 60 },
+        "academicSession": { "type": "string", "maxLength": 40 },
+        "learningMode": { "type": "string", "enum": ["Offline School", "Online Classes", "Hybrid Learning"] },
+        "status": { "type": "string", "enum": ["Pending", "Under Review", "Approved", "Rejected"] },
+        "source": { "type": "string", "enum": ["online", "offline"] },
+        "photoUrl": { "type": "string", "maxLength": 500 },
+        "documentUrls": { "type": "array" },
+        "reviewNotes": { "type": "string", "maxLength": 500 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["applicationNumber", "studentName", "applyingClass", "academicSession", "mobile", "status", "createdAt"]
+    },
+    "StudentRecord": {
+      "title": "StudentRecord",
+      "description": "Enrolled student academic and dual-education record.",
+      "type": "object",
+      "properties": {
+        "studentId": { "type": "string", "maxLength": 40 },
+        "admissionNumber": { "type": "string", "maxLength": 40 },
+        "rollNumber": { "type": "string", "maxLength": 30 },
+        "name": { "type": "string", "maxLength": 120 },
+        "fatherName": { "type": "string", "maxLength": 120 },
+        "motherName": { "type": "string", "maxLength": 120 },
+        "dob": { "type": "string", "maxLength": 30 },
+        "gender": { "type": "string", "enum": ["Male", "Female"] },
+        "classId": { "type": "string", "maxLength": 64 },
+        "sectionId": { "type": "string", "maxLength": 64 },
+        "sessionId": { "type": "string", "maxLength": 64 },
+        "learningMode": { "type": "string", "maxLength": 40 },
+        "phone": { "type": "string", "maxLength": 30 },
+        "address": { "type": "string", "maxLength": 400 },
+        "photoUrl": { "type": "string", "maxLength": 500 },
+        "studentUid": { "type": "string", "maxLength": 128 },
+        "parentUid": { "type": "string", "maxLength": 128 },
+        "status": { "type": "string", "enum": ["active", "transferred", "archived"] },
+        "islamicProgress": { "type": "object" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["studentId", "admissionNumber", "rollNumber", "name", "classId", "sessionId", "status"]
+    },
+    "ParentRecord": {
+      "title": "ParentRecord",
+      "description": "Verified parent/guardian profile linked to students.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 120 },
+        "phone": { "type": "string", "maxLength": 30 },
+        "email": { "type": "string", "maxLength": 160 },
+        "studentIds": { "type": "array" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "studentIds"]
+    },
+    "TeacherRecord": {
+      "title": "TeacherRecord",
+      "description": "Faculty profile visible across academic modules.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 120 },
+        "designation": { "type": "string", "maxLength": 120 },
+        "qualification": { "type": "string", "maxLength": 200 },
+        "department": { "type": "string", "enum": ["general", "islamic", "both"] },
+        "assignedClasses": { "type": "array" },
+        "assignedSubjects": { "type": "array" },
+        "phone": { "type": "string", "maxLength": 30 },
+        "email": { "type": "string", "maxLength": 160 },
+        "photoUrl": { "type": "string", "maxLength": 500 },
+        "isPublic": { "type": "boolean" },
+        "bio": { "type": "string", "maxLength": 1500 },
+        "status": { "type": "string", "enum": ["active", "on_leave", "inactive"] }
+      },
+      "required": ["name", "designation", "department", "status"]
+    },
+    "StaffRecord": {
+      "title": "StaffRecord",
+      "description": "Confidential administrative staff and payroll metadata.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "maxLength": 120 },
+        "roleTitle": { "type": "string", "maxLength": 120 },
+        "department": { "type": "string", "maxLength": 80 },
+        "phone": { "type": "string", "maxLength": 30 },
+        "salaryAmount": { "type": "number" },
+        "joinDate": { "type": "string", "maxLength": 30 },
+        "status": { "type": "string", "enum": ["active", "inactive"] }
+      },
+      "required": ["name", "roleTitle", "status"]
+    },
+    "AcademicSession": {
+      "title": "AcademicSession",
+      "description": "Academic year configuration.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "maxLength": 40 },
+        "startDate": { "type": "string", "maxLength": 30 },
+        "endDate": { "type": "string", "maxLength": 30 },
+        "isActive": { "type": "boolean" }
+      },
+      "required": ["name", "isActive"]
+    },
+    "AcademicClass": {
+      "title": "AcademicClass",
+      "description": "Class 1 to Class 12 structure.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "maxLength": 60 },
+        "order": { "type": "number" },
+        "wing": { "type": "string", "enum": ["Primary", "Upper Primary", "Secondary", "Higher Secondary"] },
+        "boardTrack": { "type": "string", "maxLength": 80 },
+        "classTeacherId": { "type": "string", "maxLength": 128 }
+      },
+      "required": ["name", "order", "wing"]
+    },
+    "SectionRecord": {
+      "title": "SectionRecord",
+      "description": "Section inside a class.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "maxLength": 40 },
+        "classId": { "type": "string", "maxLength": 64 },
+        "capacity": { "type": "number" },
+        "classTeacherId": { "type": "string", "maxLength": 128 }
+      },
+      "required": ["name", "classId"]
+    },
+    "SubjectRecord": {
+      "title": "SubjectRecord",
+      "description": "Configurable General or Islamic Education subject.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "maxLength": 120 },
+        "code": { "type": "string", "maxLength": 30 },
+        "track": { "type": "string", "enum": ["general", "islamic"] },
+        "classId": { "type": "string", "maxLength": 64 },
+        "teacherId": { "type": "string", "maxLength": 128 },
+        "fullMarks": { "type": "number" },
+        "passMarks": { "type": "number" },
+        "isOptional": { "type": "boolean" }
+      },
+      "required": ["name", "track", "classId"]
+    },
+    "EnrollmentRecord": {
+      "title": "EnrollmentRecord",
+      "description": "Student enrollment for a session and class.",
+      "type": "object",
+      "properties": {
+        "studentId": { "type": "string", "maxLength": 128 },
+        "classId": { "type": "string", "maxLength": 64 },
+        "sectionId": { "type": "string", "maxLength": 64 },
+        "sessionId": { "type": "string", "maxLength": 64 },
+        "status": { "type": "string", "enum": ["enrolled", "promoted", "transferred"] }
+      },
+      "required": ["studentId", "classId", "sessionId", "status"]
+    },
+    "AttendanceRecord": {
+      "title": "AttendanceRecord",
+      "description": "Daily student or teacher attendance entry.",
+      "type": "object",
+      "properties": {
+        "targetType": { "type": "string", "enum": ["student", "teacher"] },
+        "targetId": { "type": "string", "maxLength": 128 },
+        "targetName": { "type": "string", "maxLength": 120 },
+        "classId": { "type": "string", "maxLength": 64 },
+        "date": { "type": "string", "maxLength": 20 },
+        "status": { "type": "string", "enum": ["Present", "Absent", "Late", "Leave"] },
+        "recordedBy": { "type": "string", "maxLength": 128 },
+        "note": { "type": "string", "maxLength": 300 }
+      },
+      "required": ["targetType", "targetId", "date", "status"]
+    },
+    "TimetableSlot": {
+      "title": "TimetableSlot",
+      "description": "Class/teacher/room/online weekly schedule entry.",
+      "type": "object",
+      "properties": {
+        "classId": { "type": "string", "maxLength": 64 },
+        "sectionId": { "type": "string", "maxLength": 64 },
+        "day": { "type": "string", "maxLength": 20 },
+        "startTime": { "type": "string", "maxLength": 20 },
+        "endTime": { "type": "string", "maxLength": 20 },
+        "subjectName": { "type": "string", "maxLength": 120 },
+        "teacherId": { "type": "string", "maxLength": 128 },
+        "teacherName": { "type": "string", "maxLength": 120 },
+        "roomOrMode": { "type": "string", "maxLength": 80 }
+      },
+      "required": ["classId", "day", "startTime", "endTime", "subjectName"]
+    },
+    "HomeworkItem": {
+      "title": "HomeworkItem",
+      "description": "Class-wise homework task.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "maxLength": 200 },
+        "description": { "type": "string", "maxLength": 2000 },
+        "classId": { "type": "string", "maxLength": 64 },
+        "subjectName": { "type": "string", "maxLength": 120 },
+        "dueDate": { "type": "string", "maxLength": 30 },
+        "teacherUid": { "type": "string", "maxLength": 128 },
+        "attachmentUrl": { "type": "string", "maxLength": 500 }
+      },
+      "required": ["title", "classId", "subjectName", "dueDate"]
+    },
+    "AssignmentItem": {
+      "title": "AssignmentItem",
+      "description": "Graded subject assignment.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "maxLength": 200 },
+        "instructions": { "type": "string", "maxLength": 2000 },
+        "classId": { "type": "string", "maxLength": 64 },
+        "subjectName": { "type": "string", "maxLength": 120 },
+        "dueDate": { "type": "string", "maxLength": 30 },
+        "maxMarks": { "type": "number" },
+        "teacherUid": { "type": "string", "maxLength": 128 }
+      },
+      "required": ["title", "classId", "subjectName", "dueDate", "maxMarks"]
+    },
+    "SubmissionItem": {
+      "title": "SubmissionItem",
+      "description": "Student homework/assignment submission.",
+      "type": "object",
+      "properties": {
+        "assignmentId": { "type": "string", "maxLength": 128 },
+        "studentId": { "type": "string", "maxLength": 128 },
+        "studentUid": { "type": "string", "maxLength": 128 },
+        "studentName": { "type": "string", "maxLength": 120 },
+        "submissionText": { "type": "string", "maxLength": 3000 },
+        "fileUrl": { "type": "string", "maxLength": 500 },
+        "marks": { "type": "number" },
+        "feedback": { "type": "string", "maxLength": 600 },
+        "status": { "type": "string", "enum": ["submitted", "late", "evaluated"] }
+      },
+      "required": ["assignmentId", "studentUid", "status"]
+    },
+    "ExaminationRecord": {
+      "title": "ExaminationRecord",
+      "description": "Exam configuration for a session and class.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "maxLength": 160 },
+        "examType": { "type": "string", "maxLength": 80 },
+        "sessionId": { "type": "string", "maxLength": 64 },
+        "classId": { "type": "string", "maxLength": 64 },
+        "startDate": { "type": "string", "maxLength": 30 },
+        "status": { "type": "string", "enum": ["scheduled", "marks_entry", "approved", "published"] }
+      },
+      "required": ["title", "examType", "sessionId", "classId", "status"]
+    },
+    "MarkEntry": {
+      "title": "MarkEntry",
+      "description": "Subject-wise marks for an examination.",
+      "type": "object",
+      "properties": {
+        "examId": { "type": "string", "maxLength": 128 },
+        "studentId": { "type": "string", "maxLength": 128 },
+        "subjectName": { "type": "string", "maxLength": 120 },
+        "track": { "type": "string", "enum": ["general", "islamic"] },
+        "fullMarks": { "type": "number" },
+        "passMarks": { "type": "number" },
+        "obtainedMarks": { "type": "number" },
+        "verified": { "type": "boolean" }
+      },
+      "required": ["examId", "studentId", "subjectName", "fullMarks", "obtainedMarks"]
+    },
+    "PublishedResult": {
+      "title": "PublishedResult",
+      "description": "Approved non-PII examination result for marksheet portal.",
+      "type": "object",
+      "properties": {
+        "examId": { "type": "string", "maxLength": 128 },
+        "examTitle": { "type": "string", "maxLength": 160 },
+        "studentName": { "type": "string", "maxLength": 120 },
+        "fatherName": { "type": "string", "maxLength": 120 },
+        "admissionNumber": { "type": "string", "maxLength": 40 },
+        "rollNumber": { "type": "string", "maxLength": 30 },
+        "classId": { "type": "string", "maxLength": 64 },
+        "sessionId": { "type": "string", "maxLength": 64 },
+        "subjects": { "type": "array" },
+        "totalMarks": { "type": "number" },
+        "fullMarks": { "type": "number" },
+        "percentage": { "type": "number" },
+        "grade": { "type": "string", "maxLength": 10 },
+        "resultStatus": { "type": "string", "enum": ["Passed", "Compartment", "Needs Improvement"] },
+        "remarks": { "type": "string", "maxLength": 300 },
+        "isPublished": { "type": "boolean" }
+      },
+      "required": ["studentName", "rollNumber", "classId", "sessionId", "isPublished", "resultStatus"]
+    },
+    "FeeStructure": {
+      "title": "FeeStructure",
+      "description": "Configurable fee template per class and category.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "maxLength": 120 },
+        "category": { "type": "string", "enum": ["Admission Fee", "Tuition Fee", "Examination Fee", "Other Fee"] },
+        "classId": { "type": "string", "maxLength": 64 },
+        "amount": { "type": "number" },
+        "frequency": { "type": "string", "maxLength": 40 }
+      },
+      "required": ["title", "category", "classId", "amount"]
+    },
+    "FeeInvoice": {
+      "title": "FeeInvoice",
+      "description": "Student-wise fee invoice.",
+      "type": "object",
+      "properties": {
+        "invoiceNumber": { "type": "string", "maxLength": 40 },
+        "studentId": { "type": "string", "maxLength": 128 },
+        "studentName": { "type": "string", "maxLength": 120 },
+        "classId": { "type": "string", "maxLength": 64 },
+        "title": { "type": "string", "maxLength": 160 },
+        "amount": { "type": "number" },
+        "discountAmount": { "type": "number" },
+        "paidAmount": { "type": "number" },
+        "dueDate": { "type": "string", "maxLength": 30 },
+        "status": { "type": "string", "enum": ["Unpaid", "Partial", "Paid"] }
+      },
+      "required": ["invoiceNumber", "studentId", "amount", "status"]
+    },
+    "PaymentRecord": {
+      "title": "PaymentRecord",
+      "description": "Fee payment receipt record.",
+      "type": "object",
+      "properties": {
+        "receiptNumber": { "type": "string", "maxLength": 40 },
+        "invoiceId": { "type": "string", "maxLength": 128 },
+        "studentId": { "type": "string", "maxLength": 128 },
+        "studentName": { "type": "string", "maxLength": 120 },
+        "amount": { "type": "number" },
+        "method": { "type": "string", "enum": ["Cash", "Bank Transfer", "Online Gateway"] },
+        "verified": { "type": "boolean" },
+        "paidAt": { "type": "string", "maxLength": 40 }
+      },
+      "required": ["receiptNumber", "invoiceId", "studentId", "amount", "method"]
+    },
+    "LmsCourse": {
+      "title": "LmsCourse",
+      "description": "Online LMS course mapped to session, class, and subject.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "maxLength": 180 },
+        "sessionId": { "type": "string", "maxLength": 64 },
+        "classId": { "type": "string", "maxLength": 64 },
+        "subjectName": { "type": "string", "maxLength": 120 },
+        "track": { "type": "string", "enum": ["general", "islamic"] },
+        "instructorName": { "type": "string", "maxLength": 120 },
+        "description": { "type": "string", "maxLength": 1200 },
+        "isPublic": { "type": "boolean" }
+      },
+      "required": ["title", "classId", "subjectName", "track"]
+    },
+    "LmsLesson": {
+      "title": "LmsLesson",
+      "description": "Chapter & lesson inside an LMS course.",
+      "type": "object",
+      "properties": {
+        "courseId": { "type": "string", "maxLength": 128 },
+        "chapterTitle": { "type": "string", "maxLength": 160 },
+        "title": { "type": "string", "maxLength": 180 },
+        "order": { "type": "number" },
+        "videoUrl": { "type": "string", "maxLength": 500 },
+        "pdfUrl": { "type": "string", "maxLength": 500 },
+        "notes": { "type": "string", "maxLength": 3000 }
+      },
+      "required": ["courseId", "chapterTitle", "title"]
+    },
+    "LiveClassSession": {
+      "title": "LiveClassSession",
+      "description": "Scheduled live online class session.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "maxLength": 180 },
+        "classId": { "type": "string", "maxLength": 64 },
+        "subjectName": { "type": "string", "maxLength": 120 },
+        "teacherName": { "type": "string", "maxLength": 120 },
+        "meetingLink": { "type": "string", "maxLength": 500 },
+        "recordingLink": { "type": "string", "maxLength": 500 },
+        "startTime": { "type": "string", "maxLength": 40 },
+        "endTime": { "type": "string", "maxLength": 40 },
+        "status": { "type": "string", "enum": ["Scheduled", "Live", "Completed"] }
+      },
+      "required": ["title", "classId", "subjectName", "startTime", "endTime"]
+    },
+    "LearningMaterial": {
+      "title": "LearningMaterial",
+      "description": "Uploaded PDF note or study sheet.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "maxLength": 180 },
+        "classId": { "type": "string", "maxLength": 64 },
+        "subjectName": { "type": "string", "maxLength": 120 },
+        "fileUrl": { "type": "string", "maxLength": 500 },
+        "uploadedBy": { "type": "string", "maxLength": 120 }
+      },
+      "required": ["title", "classId", "fileUrl"]
+    },
+    "LibraryResource": {
+      "title": "LibraryResource",
+      "description": "Digital library book or Quranic/Arabic PDF.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "maxLength": 200 },
+        "author": { "type": "string", "maxLength": 120 },
+        "category": { "type": "string", "enum": ["General School Books", "Islamic Books", "Arabic Resources", "Quran Learning", "Subject Notes"] },
+        "classId": { "type": "string", "maxLength": 64 },
+        "subjectName": { "type": "string", "maxLength": 120 },
+        "fileUrl": { "type": "string", "maxLength": 500 },
+        "allowDownload": { "type": "boolean" }
+      },
+      "required": ["title", "category", "fileUrl", "allowDownload"]
+    },
+    "NoticeRecord": {
+      "title": "NoticeRecord",
+      "description": "Official academy notice.",
+      "type": "object",
+      "properties": {
+        "refCode": { "type": "string", "maxLength": 40 },
+        "title": { "type": "string", "maxLength": 220 },
+        "category": { "type": "string", "enum": ["Admissions", "Examinations", "Events & Holidays", "Academic"] },
+        "date": { "type": "string", "maxLength": 30 },
+        "summary": { "type": "string", "maxLength": 500 },
+        "body": { "type": "string", "maxLength": 3000 },
+        "isPublic": { "type": "boolean" }
+      },
+      "required": ["title", "category", "date", "isPublic"]
+    },
+    "EventRecord": {
+      "title": "EventRecord",
+      "description": "Public or campus calendar event.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "maxLength": 180 },
+        "date": { "type": "string", "maxLength": 40 },
+        "venue": { "type": "string", "maxLength": 160 },
+        "description": { "type": "string", "maxLength": 1200 },
+        "isPublic": { "type": "boolean" }
+      },
+      "required": ["title", "date", "isPublic"]
+    },
+    "GalleryItem": {
+      "title": "GalleryItem",
+      "description": "Photo or video gallery item.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "maxLength": 160 },
+        "mediaType": { "type": "string", "enum": ["photo", "video"] },
+        "url": { "type": "string", "maxLength": 500 },
+        "caption": { "type": "string", "maxLength": 400 },
+        "isPublic": { "type": "boolean" }
+      },
+      "required": ["title", "mediaType", "url", "isPublic"]
+    },
+    "CertificateRecord": {
+      "title": "CertificateRecord",
+      "description": "Issued student certificate record.",
+      "type": "object",
+      "properties": {
+        "certificateNumber": { "type": "string", "maxLength": 40 },
+        "templateType": { "type": "string", "enum": ["Student ID Card", "Transfer Certificate", "Bonafide Certificate", "Character Certificate", "Academic Certificate", "Fee Receipt"] },
+        "studentId": { "type": "string", "maxLength": 128 },
+        "studentName": { "type": "string", "maxLength": 120 },
+        "issuedDate": { "type": "string", "maxLength": 30 },
+        "issuedBy": { "type": "string", "maxLength": 120 }
+      },
+      "required": ["certificateNumber", "templateType", "studentId", "studentName"]
+    },
+    "NotificationItem": {
+      "title": "NotificationItem",
+      "description": "In-app notification.",
+      "type": "object",
+      "properties": {
+        "targetUid": { "type": "string", "maxLength": 128 },
+        "targetRole": { "type": "string", "maxLength": 40 },
+        "category": { "type": "string", "maxLength": 60 },
+        "title": { "type": "string", "maxLength": 160 },
+        "message": { "type": "string", "maxLength": 500 },
+        "read": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "message", "read"]
+    },
+    "AuditLogEntry": {
+      "title": "AuditLogEntry",
+      "description": "Immutable security and operational audit log.",
+      "type": "object",
+      "properties": {
+        "actorUid": { "type": "string", "maxLength": 128 },
+        "actorEmail": { "type": "string", "maxLength": 160 },
+        "action": { "type": "string", "maxLength": 120 },
+        "collectionName": { "type": "string", "maxLength": 80 },
+        "documentId": { "type": "string", "maxLength": 128 },
+        "detail": { "type": "string", "maxLength": 400 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["actorUid", "action", "collectionName", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": { "schema": { "$ref": "#/entities/UserAccount" }, "description": "User accounts and RBAC roles." },
+    "/roles/{roleId}": { "schema": { "$ref": "#/entities/RoleDefinition" }, "description": "Role permission definitions." },
+    "/permissions/{permissionId}": { "schema": { "$ref": "#/entities/PermissionItem" }, "description": "Permission catalog." },
+    "/institutionSettings/{settingId}": { "schema": { "$ref": "#/entities/InstitutionSettings" }, "description": "Configurable academy profile and CMS." },
+    "/admissions/{admissionId}": { "schema": { "$ref": "#/entities/AdmissionApplication" }, "description": "Online and offline admission applications." },
+    "/students/{studentId}": { "schema": { "$ref": "#/entities/StudentRecord" }, "description": "Student master records." },
+    "/parents/{parentId}": { "schema": { "$ref": "#/entities/ParentRecord" }, "description": "Linked parent records." },
+    "/teachers/{teacherId}": { "schema": { "$ref": "#/entities/TeacherRecord" }, "description": "Faculty profiles." },
+    "/staff/{staffId}": { "schema": { "$ref": "#/entities/StaffRecord" }, "description": "Confidential staff and salary records." },
+    "/academicSessions/{sessionId}": { "schema": { "$ref": "#/entities/AcademicSession" }, "description": "Academic sessions." },
+    "/classes/{classId}": { "schema": { "$ref": "#/entities/AcademicClass" }, "description": "Class 1-12 definitions." },
+    "/sections/{sectionId}": { "schema": { "$ref": "#/entities/SectionRecord" }, "description": "Class sections." },
+    "/subjects/{subjectId}": { "schema": { "$ref": "#/entities/SubjectRecord" }, "description": "General and Islamic subjects." },
+    "/enrollments/{enrollmentId}": { "schema": { "$ref": "#/entities/EnrollmentRecord" }, "description": "Student enrollments." },
+    "/attendance/{attendanceId}": { "schema": { "$ref": "#/entities/AttendanceRecord" }, "description": "Daily attendance logs." },
+    "/timetables/{timetableId}": { "schema": { "$ref": "#/entities/TimetableSlot" }, "description": "Class and teacher timetables." },
+    "/homework/{homeworkId}": { "schema": { "$ref": "#/entities/HomeworkItem" }, "description": "Homework tasks." },
+    "/assignments/{assignmentId}": { "schema": { "$ref": "#/entities/AssignmentItem" }, "description": "Graded assignments." },
+    "/submissions/{submissionId}": { "schema": { "$ref": "#/entities/SubmissionItem" }, "description": "Student submissions." },
+    "/examinations/{examId}": { "schema": { "$ref": "#/entities/ExaminationRecord" }, "description": "Examinations." },
+    "/marks/{markId}": { "schema": { "$ref": "#/entities/MarkEntry" }, "description": "Subject marks entries." },
+    "/results/{resultId}": { "schema": { "$ref": "#/entities/PublishedResult" }, "description": "Published marksheets." },
+    "/feeStructures/{structureId}": { "schema": { "$ref": "#/entities/FeeStructure" }, "description": "Fee structures." },
+    "/invoices/{invoiceId}": { "schema": { "$ref": "#/entities/FeeInvoice" }, "description": "Student fee invoices." },
+    "/payments/{paymentId}": { "schema": { "$ref": "#/entities/PaymentRecord" }, "description": "Fee payments." },
+    "/courses/{courseId}": { "schema": { "$ref": "#/entities/LmsCourse" }, "description": "LMS courses." },
+    "/lessons/{lessonId}": { "schema": { "$ref": "#/entities/LmsLesson" }, "description": "LMS chapters and lessons." },
+    "/liveClasses/{liveClassId}": { "schema": { "$ref": "#/entities/LiveClassSession" }, "description": "Live classes." },
+    "/learningMaterials/{materialId}": { "schema": { "$ref": "#/entities/LearningMaterial" }, "description": "Uploaded study materials." },
+    "/library/{libraryId}": { "schema": { "$ref": "#/entities/LibraryResource" }, "description": "Digital library resources." },
+    "/notices/{noticeId}": { "schema": { "$ref": "#/entities/NoticeRecord" }, "description": "Academy notices." },
+    "/events/{eventId}": { "schema": { "$ref": "#/entities/EventRecord" }, "description": "Academy events." },
+    "/gallery/{galleryId}": { "schema": { "$ref": "#/entities/GalleryItem" }, "description": "Photo and video gallery." },
+    "/certificates/{certificateId}": { "schema": { "$ref": "#/entities/CertificateRecord" }, "description": "Generated certificates." },
+    "/notifications/{notificationId}": { "schema": { "$ref": "#/entities/NotificationItem" }, "description": "In-app notifications." },
+    "/auditLogs/{logId}": { "schema": { "$ref": "#/entities/AuditLogEntry" }, "description": "Immutable audit logs." }
+  }
+}
