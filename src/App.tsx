@@ -5,6 +5,8 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter, Link, Route, Routes, useLocation } from 'react-router-dom';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { OfflineIndicator } from './components/pwa/OfflineIndicator';
+import { ServiceWorkerUpdater } from './components/pwa/ServiceWorkerUpdater';
 import { PublicLayout } from './components/public/PublicLayout';
 import { AuthProvider } from './context/AuthContext';
 import { PlatformProvider } from './context/PlatformContext';
@@ -31,6 +33,7 @@ import {
 } from './pages/PublicInfoPages';
 import { ResultPortalPage } from './pages/ResultPortalPage';
 import { PortalDashboard } from './pages/portal/PortalDashboard';
+import { StudentPortalApp } from './pages/student/StudentPortalApp';
 
 const ScrollToTop: React.FC = () => {
   const { pathname } = useLocation();
@@ -68,9 +71,14 @@ export default function App() {
         <PlatformProvider>
           <BrowserRouter>
             <ScrollToTop />
+            <OfflineIndicator />
+            <ServiceWorkerUpdater />
             <Routes>
               {/* Authenticated RBAC Portal (ERP + LMS + Role Dashboards) */}
               <Route path="/portal/*" element={<PortalDashboard />} />
+
+              {/* Dedicated Mobile-First Student Portal */}
+              <Route path="/student/*" element={<StudentPortalApp />} />
 
               {/* Public Website & Standalone Portals */}
               <Route

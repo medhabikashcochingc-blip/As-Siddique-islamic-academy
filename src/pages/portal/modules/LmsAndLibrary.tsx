@@ -1,9 +1,9 @@
-import React, { useMemo, useState } from 'react';
-import { Award, BookOpen, CheckCircle2, ExternalLink, HelpCircle, Plus, Upload, Video } from 'lucide-react';
+import React, { useState } from 'react';
+import { CheckCircle2, ExternalLink, Upload, Video } from 'lucide-react';
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
+import { AdminLmsCourseManager } from '../../../components/lms/AdminLmsCourseManager';
 import { useAuth } from '../../../context/AuthContext';
 import { usePlatform } from '../../../context/PlatformContext';
-import { DEMO_QUIZZES } from '../../../lib/defaultData';
 import { storage } from '../../../lib/firebase';
 import { hasPermission } from '../../../lib/permissions';
 
@@ -14,8 +14,6 @@ export const LmsAndLibrary: React.FC<{
     homework,
     assignments,
     submissions,
-    courses,
-    lessons,
     liveClasses,
     library,
     classes,
@@ -32,17 +30,6 @@ export const LmsAndLibrary: React.FC<{
   const [hwSubject, setHwSubject] = useState('Mathematics');
   const [hwDue, setHwDue] = useState('2026-11-30');
 
-  const [courseTitle, setCourseTitle] = useState('');
-  const [courseClass, setCourseClass] = useState('Class 10');
-  const [courseTrack, setCourseTrack] = useState<'general' | 'islamic'>('islamic');
-  const [trackFilter, setTrackFilter] = useState<'all' | 'islamic' | 'general'>('all');
-
-  const [lessonCourseId, setLessonCourseId] = useState(courses[0]?.id || 'crs-quran-tajweed');
-  const [lessonChapter, setLessonChapter] = useState('Chapter 2');
-  const [lessonTitle, setLessonTitle] = useState('');
-  const [lessonNotes, setLessonNotes] = useState('');
-  const [lessonVideoUrl, setLessonVideoUrl] = useState('');
-
   const [liveTitle, setLiveTitle] = useState('');
   const [liveClass, setLiveClass] = useState('Class 10');
   const [liveLink, setLiveLink] = useState('');
@@ -55,57 +42,8 @@ export const LmsAndLibrary: React.FC<{
   const [libFile, setLibFile] = useState<File | null>(null);
   const [libExternalUrl, setLibExternalUrl] = useState('');
 
-  const [completedLessons, setCompletedLessons] = useState<Record<string, boolean>>(() => {
-    try {
-      const saved = localStorage.getItem('academy_completed_lessons');
-      return saved ? (JSON.parse(saved) as Record<string, boolean>) : {};
-    } catch {
-      return {};
-    }
-  });
-  const [bookmarks, setBookmarks] = useState<Record<string, boolean>>({});
-  const [quizAnswers, setQuizAnswers] = useState<Record<string, number>>(() => {
-    try {
-      const saved = localStorage.getItem('academy_quiz_answers');
-      return saved ? (JSON.parse(saved) as Record<string, number>) : {};
-    } catch {
-      return {};
-    }
-  });
   const [submissionText, setSubmissionText] = useState('');
   const [feedback, setFeedback] = useState('');
-
-  const toggleLessonComplete = (lessonId: string) => {
-    setCompletedLessons((prev) => {
-      const next = { ...prev, [lessonId]: !prev[lessonId] };
-      localStorage.setItem('academy_completed_lessons', JSON.stringify(next));
-      return next;
-    });
-  };
-
-  const selectQuizOption = (quizId: string, optionIdx: number) => {
-    setQuizAnswers((prev) => {
-      const next = { ...prev, [quizId]: optionIdx };
-      localStorage.setItem('academy_quiz_answers', JSON.stringify(next));
-      return next;
-    });
-  };
-
-  const overallProgress = useMemo(() => {
-    const totalLessons = lessons.length;
-    const doneLessons = lessons.filter((l) => completedLessons[l.id]).length;
-    const totalQuizzes = DEMO_QUIZZES.length;
-    const correctQuizzes = DEMO_QUIZZES.filter((q) => quizAnswers[q.id] === q.correctIndex).length;
-    const totalItems = totalLessons + totalQuizzes;
-    const doneItems = doneLessons + correctQuizzes;
-    return {
-      doneLessons,
-      totalLessons,
-      correctQuizzes,
-      totalQuizzes,
-      pct: totalItems > 0 ? Math.round((doneItems / totalItems) * 100) : 0,
-    };
-  }, [lessons, completedLessons, quizAnswers]);
 
   const handleAddHomework = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -120,41 +58,6 @@ export const LmsAndLibrary: React.FC<{
     });
     setHwTitle('');
     setFeedback('Homework published to class.');
-  };
-
-  const handleAddCourse = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const id = `crs_${Date.now()}`;
-    await upsertRecord('courses', id, {
-      title: courseTitle,
-      sessionId: '2026–2027',
-      classId: courseClass,
-      subjectName: courseTrack === 'islamic' ? 'Quran & Islamic Studies' : 'General Subject',
-      track: courseTrack,
-      instructorName: userAccount?.displayName || 'Academy Faculty',
-      description: 'Structured LMS course with recorded lessons, notes, and mastery quizzes.',
-      isPublic: true,
-    });
-    setCourseTitle('');
-    setFeedback('LMS Course created.');
-  };
-
-  const handleAddLesson = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!lessonTitle.trim()) return;
-    const id = `les_${Date.now()}`;
-    await upsertRecord('lessons', id, {
-      courseId: lessonCourseId,
-      chapterTitle: lessonChapter.trim() || 'Chapter 1',
-      title: lessonTitle.trim(),
-      order: lessons.filter((l) => l.courseId === lessonCourseId).length + 1,
-      videoUrl: lessonVideoUrl.trim() || undefined,
-      notes: lessonNotes.trim() || 'Study notes uploaded via Academy LMS.',
-    });
-    setLessonTitle('');
-    setLessonNotes('');
-    setLessonVideoUrl('');
-    setFeedback('Recorded lesson & notes published to course.');
   };
 
   const handleAddLiveClass = async (e: React.FormEvent) => {
@@ -216,11 +119,6 @@ export const LmsAndLibrary: React.FC<{
     setSubmissionText('');
     setFeedback('Assignment submission recorded.');
   };
-
-  const filteredCourses = useMemo(
-    () => (trackFilter === 'all' ? courses : courses.filter((c) => c.track === trackFilter)),
-    [courses, trackFilter]
-  );
 
   return (
     <div className="space-y-6">
@@ -335,329 +233,7 @@ export const LmsAndLibrary: React.FC<{
       )}
 
       {(section === 'lms' || section === 'courses' || section === 'materials') && (
-        <div className="space-y-6">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <h1 className="font-serif text-3xl font-semibold text-[#06452C] dark:text-white">
-                Islamic &amp; General Online LMS
-              </h1>
-              <p className="text-xs text-[#5A6D64] dark:text-[#DED7C5]">
-                Quran &amp; Tajweed · Arabic Language · Hadith &amp; Seerah · Aqeedah &amp; Fiqh · General Subjects · Quizzes &amp; Progress
-              </p>
-            </div>
-
-            <div className="bg-white dark:bg-[#102D23] border border-[#D9AD43]/35 rounded-xl px-4 py-3 min-w-[240px]">
-              <div className="flex items-center justify-between text-xs font-semibold mb-1.5">
-                <span className="text-[#8A6518] dark:text-[#D9AD43]">Overall LMS Mastery</span>
-                <span className="tabular-nums">{overallProgress.pct}%</span>
-              </div>
-              <div className="w-full h-2 rounded-full bg-[#EFE6D2] dark:bg-[#081A14] overflow-hidden">
-                <div
-                  className="h-full bg-[#06452C] dark:bg-[#D9AD43] transition-all"
-                  style={{ width: `${overallProgress.pct}%` }}
-                />
-              </div>
-              <p className="text-[11px] text-[#5A6D64] dark:text-[#DED7C5] mt-1 tabular-nums">
-                {overallProgress.doneLessons}/{overallProgress.totalLessons} Lessons ·{' '}
-                {overallProgress.correctQuizzes}/{overallProgress.totalQuizzes} Quizzes Passed
-              </p>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            {(
-              [
-                { key: 'all', label: `All Courses (${courses.length})` },
-                { key: 'islamic', label: `Islamic Education (${courses.filter((c) => c.track === 'islamic').length})` },
-                { key: 'general', label: `General Education (${courses.filter((c) => c.track === 'general').length})` },
-              ] as const
-            ).map((tab) => (
-              <button
-                key={tab.key}
-                type="button"
-                onClick={() => setTrackFilter(tab.key)}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold border cursor-pointer ${
-                  trackFilter === tab.key
-                    ? 'bg-[#06452C] text-white border-[#06452C]'
-                    : 'bg-white dark:bg-[#102D23] border-[#D9AD43]/35'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-
-          {canManageLms && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <form
-                onSubmit={handleAddCourse}
-                className="bg-white dark:bg-[#102D23] border border-[#D9AD43]/40 rounded-xl p-5 space-y-3"
-              >
-                <p className="text-xs font-semibold uppercase tracking-wider text-[#8A6518] dark:text-[#D9AD43]">
-                  Create New LMS Course
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  <input
-                    type="text"
-                    required
-                    placeholder="Course Title"
-                    value={courseTitle}
-                    onChange={(e) => setCourseTitle(e.target.value)}
-                    className="sm:col-span-3 px-3 py-2 text-xs bg-[#F8F1DF] dark:bg-[#081A14] border border-[#D9AD43]/30 rounded-lg"
-                  />
-                  <select
-                    value={courseClass}
-                    onChange={(e) => setCourseClass(e.target.value)}
-                    className="px-3 py-2 text-xs bg-[#F8F1DF] dark:bg-[#081A14] border border-[#D9AD43]/30 rounded-lg"
-                  >
-                    {classes.map((c) => (
-                      <option key={c.id}>{c.name}</option>
-                    ))}
-                  </select>
-                  <select
-                    value={courseTrack}
-                    onChange={(e) => setCourseTrack(e.target.value as 'general' | 'islamic')}
-                    className="px-3 py-2 text-xs bg-[#F8F1DF] dark:bg-[#081A14] border border-[#D9AD43]/30 rounded-lg"
-                  >
-                    <option value="islamic">Islamic Education</option>
-                    <option value="general">General Education</option>
-                  </select>
-                  <button
-                    type="submit"
-                    className="inline-flex items-center justify-center gap-1 px-4 py-2 text-xs font-semibold bg-[#06452C] text-white rounded-lg cursor-pointer"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Add Course</span>
-                  </button>
-                </div>
-              </form>
-
-              <form
-                onSubmit={handleAddLesson}
-                className="bg-white dark:bg-[#102D23] border border-[#D9AD43]/40 rounded-xl p-5 space-y-3"
-              >
-                <p className="text-xs font-semibold uppercase tracking-wider text-[#8A6518] dark:text-[#D9AD43]">
-                  Publish Recorded Lesson / Study Note
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <select
-                    value={lessonCourseId}
-                    onChange={(e) => setLessonCourseId(e.target.value)}
-                    className="px-3 py-2 text-xs bg-[#F8F1DF] dark:bg-[#081A14] border border-[#D9AD43]/30 rounded-lg"
-                  >
-                    {courses.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.title}
-                      </option>
-                    ))}
-                  </select>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Chapter (e.g. Chapter 2)"
-                    value={lessonChapter}
-                    onChange={(e) => setLessonChapter(e.target.value)}
-                    className="px-3 py-2 text-xs bg-[#F8F1DF] dark:bg-[#081A14] border border-[#D9AD43]/30 rounded-lg"
-                  />
-                  <input
-                    type="text"
-                    required
-                    placeholder="Lesson Title"
-                    value={lessonTitle}
-                    onChange={(e) => setLessonTitle(e.target.value)}
-                    className="px-3 py-2 text-xs bg-[#F8F1DF] dark:bg-[#081A14] border border-[#D9AD43]/30 rounded-lg"
-                  />
-                  <input
-                    type="url"
-                    placeholder="Recorded Video URL (Optional)"
-                    value={lessonVideoUrl}
-                    onChange={(e) => setLessonVideoUrl(e.target.value)}
-                    className="px-3 py-2 text-xs bg-[#F8F1DF] dark:bg-[#081A14] border border-[#D9AD43]/30 rounded-lg"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Lesson Summary / Study Notes"
-                    value={lessonNotes}
-                    onChange={(e) => setLessonNotes(e.target.value)}
-                    className="px-3 py-2 text-xs bg-[#F8F1DF] dark:bg-[#081A14] border border-[#D9AD43]/30 rounded-lg"
-                  />
-                  <button
-                    type="submit"
-                    className="inline-flex items-center justify-center gap-1 px-4 py-2 text-xs font-semibold bg-[#06452C] text-white rounded-lg cursor-pointer"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Publish Lesson</span>
-                  </button>
-                </div>
-              </form>
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {filteredCourses.map((course) => {
-              const courseLessons = lessons.filter((l) => l.courseId === course.id);
-              const doneInCourse = courseLessons.filter((l) => completedLessons[l.id]).length;
-              const pct = courseLessons.length
-                ? Math.round((doneInCourse / courseLessons.length) * 100)
-                : 0;
-
-              return (
-                <div
-                  key={course.id}
-                  className="bg-white dark:bg-[#102D23] border border-[#D9AD43]/35 rounded-xl p-6 space-y-4"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <p className="text-xs font-semibold text-[#8A6518] dark:text-[#D9AD43]">
-                        {course.sessionId} · {course.classId} · {course.subjectName}
-                      </p>
-                      <h2 className="font-serif text-2xl font-semibold">{course.title}</h2>
-                    </div>
-                    <BookOpen className="w-5 h-5 text-[#D9AD43] shrink-0" />
-                  </div>
-                  <p className="text-xs text-[#5A6D64] dark:text-[#DED7C5]">{course.description}</p>
-
-                  <div>
-                    <div className="flex justify-between text-[11px] font-semibold mb-1">
-                      <span>Lesson Progress</span>
-                      <span className="tabular-nums">
-                        {doneInCourse}/{courseLessons.length} ({pct}%)
-                      </span>
-                    </div>
-                    <div className="w-full h-1.5 rounded-full bg-[#EFE6D2] dark:bg-[#081A14] overflow-hidden">
-                      <div
-                        className="h-full bg-[#06452C] dark:bg-[#D9AD43]"
-                        style={{ width: `${pct}%` }}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2 pt-3 border-t border-[#EFE6D2] dark:border-[#D9AD43]/20">
-                    {courseLessons.map((les) => (
-                      <div
-                        key={les.id}
-                        className="p-3 rounded-lg bg-[#F8F1DF] dark:bg-[#081A14] flex flex-wrap items-center justify-between gap-3 text-xs"
-                      >
-                        <div className="min-w-0 flex-1">
-                          <p className="font-semibold text-[#8A6518] dark:text-[#D9AD43]">
-                            {les.chapterTitle}
-                          </p>
-                          <p className="font-medium">{les.title}</p>
-                          <p className="text-[11px] text-[#5A6D64] dark:text-[#DED7C5] mt-0.5">
-                            {les.notes}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          {les.videoUrl && (
-                            <a
-                              href={les.videoUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="px-2 py-1 border border-[#D9AD43]/40 rounded inline-flex items-center gap-1"
-                            >
-                              <Video className="w-3 h-3" /> Watch
-                            </a>
-                          )}
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setBookmarks((p) => ({ ...p, [les.id]: !p[les.id] }))
-                            }
-                            className="px-2 py-1 border border-[#D9AD43]/40 rounded cursor-pointer"
-                          >
-                            {bookmarks[les.id] ? 'Bookmarked' : 'Bookmark'}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => toggleLessonComplete(les.id)}
-                            className={`px-2 py-1 rounded cursor-pointer ${
-                              completedLessons[les.id]
-                                ? 'bg-[#06452C] text-white'
-                                : 'border border-[#06452C] dark:border-[#D9AD43]'
-                            }`}
-                          >
-                            {completedLessons[les.id] ? 'Completed' : 'Mark Complete'}
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Interactive Course Quizzes & Progress Check */}
-          <div className="bg-white dark:bg-[#102D23] border border-[#D9AD43]/40 rounded-xl p-6 space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-[#8A6518] dark:text-[#D9AD43]">
-                  Interactive Self-Assessment
-                </p>
-                <h2 className="font-serif text-2xl font-semibold text-[#06452C] dark:text-white">
-                  Quran, Arabic, Hadith, Fiqh &amp; General Concept Quizzes
-                </h2>
-              </div>
-              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#06452C] text-[#F8F1DF] text-xs font-semibold">
-                <Award className="w-3.5 h-3.5 text-[#D9AD43]" />
-                Score: {overallProgress.correctQuizzes} / {overallProgress.totalQuizzes}
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {DEMO_QUIZZES.map((q) => {
-                const chosen = quizAnswers[q.id];
-                const isAnswered = chosen !== undefined;
-                const isCorrect = chosen === q.correctIndex;
-                return (
-                  <div
-                    key={q.id}
-                    className="p-4 rounded-xl bg-[#F8F1DF]/70 dark:bg-[#081A14] border border-[#D9AD43]/30 space-y-2.5"
-                  >
-                    <div className="flex items-start gap-2">
-                      <HelpCircle className="w-4 h-4 text-[#8A6518] dark:text-[#D9AD43] shrink-0 mt-0.5" />
-                      <p className="text-xs sm:text-sm font-semibold">{q.question}</p>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {q.options.map((opt, idx) => {
-                        const selected = chosen === idx;
-                        const correctOpt = isAnswered && idx === q.correctIndex;
-                        return (
-                          <button
-                            key={opt}
-                            type="button"
-                            onClick={() => selectQuizOption(q.id, idx)}
-                            className={`text-left px-3 py-2 rounded-lg text-xs border transition-colors cursor-pointer ${
-                              correctOpt
-                                ? 'bg-[#06452C] text-white border-[#06452C]'
-                                : selected
-                                ? 'bg-[#FDF2F2] text-[#7F1D1D] border-[#E5B4B4]'
-                                : 'bg-white dark:bg-[#102D23] border-[#D9AD43]/30 hover:border-[#06452C]'
-                            }`}
-                          >
-                            {opt}
-                          </button>
-                        );
-                      })}
-                    </div>
-                    {isAnswered && (
-                      <p
-                        className={`text-[11px] font-medium ${
-                          isCorrect
-                            ? 'text-[#06452C] dark:text-[#A9D5BE]'
-                            : 'text-[#8A6518] dark:text-[#D9AD43]'
-                        }`}
-                      >
-                        {isCorrect ? 'Correct: ' : 'Note: '}
-                        {q.explanation}
-                      </p>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
+        <AdminLmsCourseManager canManageLms={canManageLms} />
       )}
 
       {section === 'live-classes' && (

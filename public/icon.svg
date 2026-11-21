@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <rect width="512" height="512" rx="96" fill="#06452C" />
+  <rect x="20" y="20" width="472" height="472" rx="82" stroke="#D9AD43" stroke-opacity="0.45" stroke-width="6" />
+  <!-- Rub el Hizb octagram (outer royal gold, rotated cream gold) -->
+  <rect x="132" y="132" width="248" height="248" rx="18" stroke="#D9AD43" stroke-width="16" />
+  <rect
+    x="132"
+    y="132"
+    width="248"
+    height="248"
+    rx="18"
+    transform="rotate(45 256 256)"
+    stroke="#F8F1DF"
+    stroke-width="14"
+  />
+  <!-- Inner sanctuary glow -->
+  <circle cx="256" cy="256" r="88" fill="#102D23" stroke="#D9AD43" stroke-opacity="0.55" stroke-width="4" />
+  <!-- Open Quran / Knowledge Book -->
+  <path
+    d="M192 296C214 284 236 287 256 300C276 287 298 284 320 296V214C298 203 276 206 256 220C236 206 214 203 192 214V296Z"
+    fill="#F8F1DF"
+    fill-opacity="0.14"
+    stroke="#F8F1DF"
+    stroke-width="12"
+    stroke-linejoin="round"
+  />
+  <line x1="256" y1="220" x2="256" y2="300" stroke="#D9AD43" stroke-width="10" stroke-linecap="round" />
+  <!-- Guiding star finial -->
+  <circle cx="256" cy="176" r="11" fill="#D9AD43" />
+</svg>

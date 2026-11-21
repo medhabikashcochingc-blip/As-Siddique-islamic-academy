@@ -18,6 +18,7 @@ import {
   Video,
 } from 'lucide-react';
 import { AcademyEmblem, GeometricDivider } from '../components/AcademyEmblem';
+import { TeacherPhoto } from '../components/TeacherPhoto';
 import { useAuth } from '../context/AuthContext';
 import { usePlatform } from '../context/PlatformContext';
 import { HERO_MOSQUE_IMAGE, PRINCIPAL_PORTRAIT_IMAGE } from '../lib/defaultData';
@@ -390,25 +391,24 @@ export const HomePage: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {teachers.slice(0, 3).map((teacher) => (
+            {teachers
+              .filter((teacher) => teacher.isPublic !== false && teacher.status !== 'inactive')
+              .sort((a, b) => Number(Boolean(a.isDemo)) - Number(Boolean(b.isDemo)))
+              .slice(0, 3)
+              .map((teacher) => (
               <article
                 key={teacher.id}
                 className="bg-white dark:bg-[#102D23] border border-[#D9AD43]/30 rounded-xl overflow-hidden flex flex-col justify-between"
               >
                 <div>
                   <div className="aspect-square bg-[#EFE6D2] dark:bg-[#06452C] overflow-hidden">
-                    {teacher.photoUrl ? (
-                      <img
-                        src={teacher.photoUrl}
-                        alt={teacher.name}
-                        referrerPolicy="no-referrer"
-                        className="w-full h-full object-cover object-top"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <AcademyEmblem className="w-16 h-16" variant="gold-on-emerald" />
-                      </div>
-                    )}
+                    <TeacherPhoto
+                      photoUrl={teacher.photoUrl}
+                      name={teacher.name}
+                      className="w-full h-full object-cover object-top"
+                      emblemClassName="w-16 h-16"
+                      fallbackBgClassName="w-full h-full flex items-center justify-center"
+                    />
                   </div>
                   <div className="p-5">
                     <p className="text-xs font-medium text-[#8A6518] dark:text-[#D9AD43] mb-1">

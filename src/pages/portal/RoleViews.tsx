@@ -1,7 +1,6 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Award,
-  Bookmark,
   BookOpen,
   Building2,
   CalendarCheck,
@@ -11,7 +10,8 @@ import {
   Download,
   ExternalLink,
   GraduationCap,
-  HelpCircle,
+  Lock,
+  Play,
   Send,
   Settings,
   ShieldCheck,
@@ -20,16 +20,18 @@ import {
   Video,
   Wallet,
 } from 'lucide-react';
+import { SequentialLmsPlayer } from '../../components/lms/SequentialLmsPlayer';
 import { useAuth } from '../../context/AuthContext';
 import { usePlatform } from '../../context/PlatformContext';
-import { DEMO_QUIZZES } from '../../lib/defaultData';
 import {
+  downloadCourseCompletionCertificatePdf,
   downloadFeeReceiptPdf,
   downloadMarksheetPdf,
   downloadStudentIdCardPdf,
   downloadTimetablePdf,
 } from '../../lib/pdfGenerator';
 import { ROLE_DEFINITIONS } from '../../lib/permissions';
+import { LmsCourse, LmsQuizAttempt } from '../../types/platform';
 
 type StudentTab =
   | 'overview'
@@ -54,6 +56,7 @@ export const StudentPortalView: React.FC = () => {
     results,
     courses,
     lessons,
+    lmsProgress,
     liveClasses,
     library,
     invoices,
@@ -67,47 +70,11 @@ export const StudentPortalView: React.FC = () => {
   const [tab, setTab] = useState<StudentTab>('overview');
   const [submittingId, setSubmittingId] = useState<string | null>(null);
   const [submissionText, setSubmissionText] = useState('');
-  const [bookmarks, setBookmarks] = useState<string[]>(() => {
-    try {
-      const saved = localStorage.getItem('academy_lesson_bookmarks');
-      return saved ? (JSON.parse(saved) as string[]) : [];
-    } catch {
-      return [];
-    }
-  });
-  const [completedLessons, setCompletedLessons] = useState<Record<string, boolean>>(() => {
-    try {
-      const saved = localStorage.getItem('academy_completed_lessons');
-      return saved ? (JSON.parse(saved) as Record<string, boolean>) : {};
-    } catch {
-      return {};
-    }
-  });
-  const [quizAnswers, setQuizAnswers] = useState<Record<string, number>>(() => {
-    try {
-      const saved = localStorage.getItem('academy_quiz_answers');
-      return saved ? (JSON.parse(saved) as Record<string, number>) : {};
-    } catch {
-      return {};
-    }
-  });
+  const [activeCoursePlayer, setActiveCoursePlayer] = useState<{
+    course: LmsCourse;
+    lessonId?: string;
+  } | null>(null);
   const [statusMsg, setStatusMsg] = useState('');
-
-  const toggleLessonComplete = (lessonId: string) => {
-    setCompletedLessons((prev) => {
-      const next = { ...prev, [lessonId]: !prev[lessonId] };
-      localStorage.setItem('academy_completed_lessons', JSON.stringify(next));
-      return next;
-    });
-  };
-
-  const selectQuizOption = (quizId: string, idx: number) => {
-    setQuizAnswers((prev) => {
-      const next = { ...prev, [quizId]: idx };
-      localStorage.setItem('academy_quiz_answers', JSON.stringify(next));
-      return next;
-    });
-  };
 
   // Resolve linked student record (or preview first demo student for Super Admin preview)
   const myStudent = useMemo(() => {
@@ -134,7 +101,11 @@ export const StudentPortalView: React.FC = () => {
       r.isPublished &&
       (r.rollNumber === myStudent?.rollNumber || r.admissionNumber === myStudent?.admissionNumber)
   );
-  const myCourses = courses.filter((c) => c.classId === myClassId);
+  const myCourses = useMemo(() => courses.filter((c) => c.classId === myClassId), [courses, myClassId]);
+  const studentCourses = useMemo(
+    () => (myCourses.length > 0 ? myCourses : courses),
+    [myCourses, courses]
+  );
   const myLiveClasses = liveClasses.filter((l) => l.classId === myClassId);
   const myLibrary = library.filter(
     (lb) => lb.classId === myClassId || lb.classId === 'All Classes'
@@ -142,13 +113,151 @@ export const StudentPortalView: React.FC = () => {
   const myInvoices = invoices.filter((inv) => inv.studentId === myStudent?.id);
   const myPayments = payments.filter((p) => p.studentId === myStudent?.id);
 
-  const toggleBookmark = (lessonId: string) => {
-    const next = bookmarks.includes(lessonId)
-      ? bookmarks.filter((b) => b !== lessonId)
-      : [...bookmarks, lessonId];
-    setBookmarks(next);
-    localStorage.setItem('academy_lesson_bookmarks', JSON.stringify(next));
-  };
+  const progressByCourse = useMemo(() => {
+    const map = new Map<string, (typeof lmsProgress)[number]>();
+    for (const p of lmsProgress) {
+      const matchesCurrentUser = Boolean(userAccount?.uid && p.studentUid === userAccount.uid);
+      const matchesLinkedStudent = Boolean(myStudent?.studentId && p.studentId === myStudent.studentId);
+      if (!matchesCurrentUser && !matchesLinkedStudent) continue;
+      const existing = map.get(p.courseId);
+      if (!existing || matchesCurrentUser) {
+        map.set(p.courseId, p);
+      }
+    }
+    return map;
+  }, [lmsProgress, userAccount?.uid, myStudent?.studentId]);
+
+  const lmsSummary = useMemo(() => {
+    let totalLessons = 0;
+    let completedLessonsCount = 0;
+    let lockedLessonsCount = 0;
+    let pctSum = 0;
+
+    const quizHistory: Array<{
+      courseTitle: string;
+      lessonId: string;
+      lessonTitle: string;
+      attempt: LmsQuizAttempt;
+    }> = [];
+
+    const certificates: Array<{
+      course: LmsCourse;
+      certificateNumber: string;
+      issuedAt: string;
+    }> = [];
+
+    let continueCandidate: {
+      course: LmsCourse;
+      lessonId?: string;
+      lessonTitle: string;
+      pct: number;
+      completedCount: number;
+      totalCount: number;
+    } | null = null;
+
+    for (const course of studentCourses) {
+      const courseLessons = lessons
+        .filter((l) => l.courseId === course.id)
+        .sort((a, b) => a.order - b.order);
+      const prog = progressByCourse.get(course.id);
+
+      let completedInCourse = 0;
+      let firstOpenIncompleteLessonId: string | undefined;
+
+      courseLessons.forEach((les, idx) => {
+        totalLessons += 1;
+        const lp = prog?.lessonProgress?.[les.id];
+        const passed = Boolean(
+          prog?.completedLessonIds?.includes(les.id) ||
+            prog?.passedLessonIds?.includes(les.id) ||
+            lp?.passed
+        );
+        const prevLesson = idx > 0 ? courseLessons[idx - 1] : null;
+        const prevPassed = prevLesson
+          ? Boolean(
+              prog?.completedLessonIds?.includes(prevLesson.id) ||
+                prog?.passedLessonIds?.includes(prevLesson.id) ||
+                prog?.lessonProgress?.[prevLesson.id]?.passed
+            )
+          : true;
+        const unlocked =
+          idx === 0 ||
+          Boolean(prog?.unlockedLessonIds?.includes(les.id)) ||
+          Boolean(lp?.unlocked) ||
+          prevPassed;
+
+        if (passed) {
+          completedLessonsCount += 1;
+          completedInCourse += 1;
+        }
+        if (!unlocked) {
+          lockedLessonsCount += 1;
+        } else if (!passed && !firstOpenIncompleteLessonId) {
+          firstOpenIncompleteLessonId = les.id;
+        }
+
+        if (lp?.attempts?.length) {
+          lp.attempts.forEach((attempt) => {
+            quizHistory.push({
+              courseTitle: course.title,
+              lessonId: les.id,
+              lessonTitle: les.title,
+              attempt,
+            });
+          });
+        }
+      });
+
+      const coursePct =
+        prog?.courseCompletionPercent ??
+        (courseLessons.length > 0 ? Math.round((completedInCourse / courseLessons.length) * 100) : 0);
+      pctSum += coursePct;
+
+      if (prog?.certificateEarned && course.certificateEnabled !== false) {
+        certificates.push({
+          course,
+          certificateNumber: prog.certificateNumber || `CERT-${course.id.slice(0, 6).toUpperCase()}`,
+          issuedAt: prog.certificateIssuedAt || new Date().toISOString(),
+        });
+      }
+
+      const targetLessonId =
+        prog?.lastWatchedLessonId || firstOpenIncompleteLessonId || courseLessons[0]?.id;
+      const targetLessonTitle =
+        courseLessons.find((l) => l.id === targetLessonId)?.title || 'Lesson 01';
+
+      if (
+        !continueCandidate ||
+        (prog?.lastWatchedLessonId && coursePct < 100 && continueCandidate.pct === 0)
+      ) {
+        continueCandidate = {
+          course,
+          lessonId: targetLessonId,
+          lessonTitle: targetLessonTitle,
+          pct: coursePct,
+          completedCount: completedInCourse,
+          totalCount: courseLessons.length,
+        };
+      }
+    }
+
+    quizHistory.sort(
+      (a, b) => new Date(b.attempt.submittedAt).getTime() - new Date(a.attempt.submittedAt).getTime()
+    );
+
+    const overallPct =
+      studentCourses.length > 0 ? Math.round(pctSum / studentCourses.length) : 0;
+
+    return {
+      totalLessons,
+      completedLessonsCount,
+      lockedLessonsCount,
+      overallPct,
+      quizHistory,
+      certificates,
+      continueCandidate,
+    };
+  }, [studentCourses, lessons, progressByCourse]);
 
   const handleAssignmentSubmit = async (e: React.FormEvent, assignmentId: string) => {
     e.preventDefault();
@@ -173,6 +282,18 @@ export const StudentPortalView: React.FC = () => {
 
   const presentCount = myAttendance.filter((a) => a.status === 'Present').length;
   const attPct = myAttendance.length ? Math.round((presentCount / myAttendance.length) * 100) : 100;
+
+  if (activeCoursePlayer) {
+    return (
+      <SequentialLmsPlayer
+        course={activeCoursePlayer.course}
+        initialLessonId={activeCoursePlayer.lessonId}
+        studentId={myStudent?.studentId || myStudent?.id}
+        studentName={myStudent?.name || userAccount?.displayName}
+        onExit={() => setActiveCoursePlayer(null)}
+      />
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -221,7 +342,7 @@ export const StudentPortalView: React.FC = () => {
             { key: 'overview', label: 'Overview' },
             { key: 'routine', label: 'Class Routine & Attendance' },
             { key: 'homework', label: 'Homework & Assignments' },
-            { key: 'lms', label: 'LMS & Live Classes' },
+            { key: 'lms', label: 'Video LMS & Quizzes' },
             { key: 'islamic', label: 'Islamic Education Progress' },
             { key: 'results', label: 'Exams & Marksheet' },
             { key: 'library', label: 'Digital Library' },
@@ -231,8 +352,11 @@ export const StudentPortalView: React.FC = () => {
           <button
             key={item.key}
             type="button"
-            onClick={() => setTab(item.key)}
-            className={`px-3.5 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+            onClick={() => {
+              setTab(item.key);
+              setActiveCoursePlayer(null);
+            }}
+            className={`px-3.5 py-2 min-h-[40px] rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
               tab === item.key
                 ? 'bg-[#06452C] text-[#F8F1DF] border border-[#D9AD43]/60'
                 : 'bg-white dark:bg-[#102D23] text-[#102D23] dark:text-[#E6DFCE] border border-[#D9AD43]/25 hover:border-[#D9AD43]'
@@ -251,6 +375,40 @@ export const StudentPortalView: React.FC = () => {
 
       {tab === 'overview' && (
         <div className="space-y-6">
+          {lmsSummary.continueCandidate && (
+            <div className="bg-gradient-to-r from-[#06452C] to-[#0E3929] text-[#F8F1DF] border border-[#D9AD43]/45 rounded-xl p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="space-y-1.5 min-w-0">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#D9AD43]">
+                  Continue Learning · Sequential Video LMS
+                </p>
+                <h3 className="font-serif text-xl sm:text-2xl font-semibold text-white truncate">
+                  {lmsSummary.continueCandidate.course.title}
+                </h3>
+                <p className="text-xs text-[#E6DFCE] truncate">
+                  Next Lesson: <strong>{lmsSummary.continueCandidate.lessonTitle}</strong> ·{' '}
+                  <span className="tabular-nums">
+                    {lmsSummary.continueCandidate.completedCount}/
+                    {lmsSummary.continueCandidate.totalCount} completed (
+                    {lmsSummary.continueCandidate.pct}%)
+                  </span>
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setTab('lms');
+                  setActiveCoursePlayer({
+                    course: lmsSummary.continueCandidate!.course,
+                    lessonId: lmsSummary.continueCandidate!.lessonId,
+                  });
+                }}
+                className="inline-flex items-center justify-center gap-2 px-5 py-3 min-h-[44px] rounded-xl bg-[#D9AD43] text-[#102D23] text-xs font-bold hover:bg-[#e5be5c] cursor-pointer shrink-0"
+              >
+                <Play className="w-4 h-4 fill-current" />
+                Resume Video Lesson
+              </button>
+            </div>
+          )}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-white dark:bg-[#102D23] border border-[#D9AD43]/30 rounded-xl p-5">
               <div className="flex items-center justify-between text-[#5A6D64] dark:text-[#D9AD43] text-xs font-semibold mb-2">
@@ -511,6 +669,366 @@ export const StudentPortalView: React.FC = () => {
 
       {tab === 'lms' && (
         <div className="space-y-6">
+          {/* Progress Summary Strip */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-white dark:bg-[#102D23] border border-[#D9AD43]/30 rounded-xl p-4">
+              <div className="flex items-center justify-between text-xs font-semibold text-[#5A6D64] dark:text-[#D9AD43]">
+                <span>MY COURSES</span>
+                <BookOpen className="w-4 h-4" />
+              </div>
+              <p className="font-serif text-3xl font-semibold mt-1 tabular-nums text-[#06452C] dark:text-white">
+                {studentCourses.length}
+              </p>
+              <p className="text-[11px] text-[#5A6D64] dark:text-[#DED7C5]">
+                Sequential Video + MCQ
+              </p>
+            </div>
+
+            <div className="bg-white dark:bg-[#102D23] border border-[#D9AD43]/30 rounded-xl p-4">
+              <div className="flex items-center justify-between text-xs font-semibold text-[#5A6D64] dark:text-[#D9AD43]">
+                <span>COMPLETED LESSONS</span>
+                <CheckCircle2 className="w-4 h-4" />
+              </div>
+              <p className="font-serif text-3xl font-semibold mt-1 tabular-nums text-[#06452C] dark:text-white">
+                {lmsSummary.completedLessonsCount}
+                <span className="text-base font-normal text-[#5A6D64] dark:text-[#DED7C5]">
+                  /{lmsSummary.totalLessons}
+                </span>
+              </p>
+              <p className="text-[11px] text-[#5A6D64] dark:text-[#DED7C5]">
+                Video + Quiz Passed
+              </p>
+            </div>
+
+            <div className="bg-white dark:bg-[#102D23] border border-[#D9AD43]/30 rounded-xl p-4">
+              <div className="flex items-center justify-between text-xs font-semibold text-[#5A6D64] dark:text-[#D9AD43]">
+                <span>LOCKED LESSONS</span>
+                <Lock className="w-4 h-4" />
+              </div>
+              <p className="font-serif text-3xl font-semibold mt-1 tabular-nums text-[#06452C] dark:text-white">
+                {lmsSummary.lockedLessonsCount}
+              </p>
+              <p className="text-[11px] text-[#5A6D64] dark:text-[#DED7C5]">
+                Unlock sequentially via MCQ
+              </p>
+            </div>
+
+            <div className="bg-white dark:bg-[#102D23] border border-[#D9AD43]/30 rounded-xl p-4">
+              <div className="flex items-center justify-between text-xs font-semibold text-[#5A6D64] dark:text-[#D9AD43]">
+                <span>OVERALL PROGRESS</span>
+                <Award className="w-4 h-4" />
+              </div>
+              <p className="font-serif text-3xl font-semibold mt-1 tabular-nums text-[#06452C] dark:text-white">
+                {lmsSummary.overallPct}%
+              </p>
+              <div className="w-full h-1.5 rounded-full bg-[#EFE6D2] dark:bg-[#081A14] mt-1.5 overflow-hidden">
+                <div
+                  className="h-full bg-[#06452C] dark:bg-[#D9AD43]"
+                  style={{ width: `${lmsSummary.overallPct}%` }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Continue Learning Banner */}
+          {lmsSummary.continueCandidate && (
+            <div className="bg-gradient-to-r from-[#06452C] to-[#0D3828] text-[#F8F1DF] border border-[#D9AD43]/45 rounded-xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="space-y-1 min-w-0">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#D9AD43]">
+                  Continue Learning
+                </p>
+                <h3 className="font-serif text-xl font-semibold text-white truncate">
+                  {lmsSummary.continueCandidate.course.title} — {lmsSummary.continueCandidate.lessonTitle}
+                </h3>
+                <p className="text-xs text-[#E6DFCE]">
+                  {lmsSummary.continueCandidate.completedCount}/
+                  {lmsSummary.continueCandidate.totalCount} lessons passed (
+                  {lmsSummary.continueCandidate.pct}%)
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() =>
+                  setActiveCoursePlayer({
+                    course: lmsSummary.continueCandidate!.course,
+                    lessonId: lmsSummary.continueCandidate!.lessonId,
+                  })
+                }
+                className="inline-flex items-center justify-center gap-2 px-5 py-3 min-h-[44px] rounded-xl bg-[#D9AD43] text-[#102D23] text-xs font-bold hover:bg-[#e5be5c] cursor-pointer shrink-0"
+              >
+                <Play className="w-4 h-4 fill-current" />
+                Continue Video Lesson
+              </button>
+            </div>
+          )}
+
+          {/* My Courses (Sequential Lesson Status + Launch Video Player) */}
+          <div className="bg-white dark:bg-[#102D23] border border-[#D9AD43]/30 rounded-xl p-6 space-y-5">
+            <div>
+              <h3 className="font-serif text-xl font-semibold text-[#06452C] dark:text-white">
+                My Sequential Video Courses
+              </h3>
+              <p className="text-xs text-[#5A6D64] dark:text-[#DED7C5]">
+                Watch each lesson lecture completely to unlock its MCQ quiz. Passing unlocks the next lesson.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+              {studentCourses.map((course) => {
+                const courseLessons = lessons
+                  .filter((l) => l.courseId === course.id)
+                  .sort((a, b) => a.order - b.order);
+                const prog = progressByCourse.get(course.id);
+                const completedIds = new Set<string>([
+                  ...(prog?.completedLessonIds || []),
+                  ...(prog?.passedLessonIds || []),
+                ]);
+                const pct =
+                  prog?.courseCompletionPercent ??
+                  (courseLessons.length > 0
+                    ? Math.round((completedIds.size / courseLessons.length) * 100)
+                    : 0);
+
+                return (
+                  <div
+                    key={course.id}
+                    className="p-5 rounded-xl border border-[#D9AD43]/35 bg-[#F8F1DF]/55 dark:bg-[#081A14] flex flex-col justify-between gap-4"
+                  >
+                    <div className="space-y-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-[11px] font-semibold text-[#8A6518] dark:text-[#D9AD43]">
+                            {course.subjectName} · {course.classId} · {course.instructorName}
+                          </p>
+                          <h4 className="font-serif text-lg font-semibold mt-0.5 text-[#06452C] dark:text-white">
+                            {course.title}
+                          </h4>
+                        </div>
+                        <span className="text-xs font-bold tabular-nums px-2.5 py-1 rounded-lg bg-[#06452C] text-[#F8F1DF] shrink-0">
+                          {pct}%
+                        </span>
+                      </div>
+
+                      <p className="text-xs text-[#5A6D64] dark:text-[#DED7C5]">
+                        {course.description}
+                      </p>
+
+                      <div className="w-full h-1.5 rounded-full bg-[#EFE6D2] dark:bg-[#102D23] overflow-hidden">
+                        <div
+                          className="h-full bg-[#06452C] dark:bg-[#D9AD43] transition-all"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+
+                      <div className="space-y-1.5 pt-2 border-t border-[#D9AD43]/20">
+                        {courseLessons.map((les, idx) => {
+                          const lp = prog?.lessonProgress?.[les.id];
+                          const isCompleted = completedIds.has(les.id) || Boolean(lp?.passed);
+                          const prevLes = idx > 0 ? courseLessons[idx - 1] : null;
+                          const prevDone = prevLes
+                            ? completedIds.has(prevLes.id) ||
+                              Boolean(prog?.lessonProgress?.[prevLes.id]?.passed)
+                            : true;
+                          const isUnlocked =
+                            idx === 0 ||
+                            Boolean(prog?.unlockedLessonIds?.includes(les.id)) ||
+                            Boolean(lp?.unlocked) ||
+                            prevDone;
+
+                          return (
+                            <button
+                              key={les.id}
+                              type="button"
+                              disabled={!isUnlocked}
+                              onClick={() =>
+                                setActiveCoursePlayer({ course, lessonId: les.id })
+                              }
+                              className={`w-full text-left px-3 py-2.5 min-h-[44px] rounded-lg border text-xs flex items-center justify-between gap-2 transition-colors ${
+                                isUnlocked
+                                  ? 'bg-white dark:bg-[#102D23] border-[#D9AD43]/30 hover:border-[#06452C] cursor-pointer'
+                                  : 'bg-white/40 dark:bg-[#102D23]/40 border-[#D9AD43]/15 opacity-70 cursor-not-allowed'
+                              }`}
+                            >
+                              <div className="min-w-0 flex items-center gap-2">
+                                {isCompleted ? (
+                                  <CheckCircle2 className="w-4 h-4 text-[#06452C] dark:text-[#A9D5BE] shrink-0" />
+                                ) : isUnlocked ? (
+                                  <Play className="w-4 h-4 text-[#8A6518] dark:text-[#D9AD43] shrink-0" />
+                                ) : (
+                                  <Lock className="w-4 h-4 text-[#5A6D64] shrink-0" />
+                                )}
+                                <span className="truncate font-medium">
+                                  {String(idx + 1).padStart(2, '0')}. {les.title}
+                                </span>
+                              </div>
+                              <span
+                                className={`text-[10px] font-semibold px-2 py-0.5 rounded shrink-0 ${
+                                  isCompleted
+                                    ? 'bg-[#06452C]/15 text-[#06452C] dark:text-[#A9D5BE]'
+                                    : isUnlocked
+                                    ? 'bg-[#D9AD43]/20 text-[#8A6518] dark:text-[#D9AD43]'
+                                    : 'bg-black/5 dark:bg-white/5 text-[#5A6D64]'
+                                }`}
+                              >
+                                {isCompleted ? 'Completed' : isUnlocked ? 'Unlocked' : 'Locked'}
+                              </span>
+                            </button>
+                          );
+                        })}
+                        {courseLessons.length === 0 && (
+                          <p className="text-xs text-[#5A6D64] dark:text-[#DED7C5]">
+                            No video lessons published in this course yet.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="pt-2 flex flex-wrap items-center justify-between gap-2">
+                      <button
+                        type="button"
+                        disabled={courseLessons.length === 0}
+                        onClick={() =>
+                          setActiveCoursePlayer({
+                            course,
+                            lessonId: prog?.lastWatchedLessonId || courseLessons[0]?.id,
+                          })
+                        }
+                        className="inline-flex items-center justify-center gap-2 px-4 py-2.5 min-h-[44px] rounded-xl bg-[#06452C] text-[#F8F1DF] text-xs font-semibold hover:bg-[#0D5A3B] disabled:opacity-50 cursor-pointer"
+                      >
+                        <Play className="w-3.5 h-3.5 fill-current" />
+                        Open Video Player
+                      </button>
+
+                      {prog?.certificateEarned && course.certificateEnabled !== false && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            downloadCourseCompletionCertificatePdf({
+                              studentName:
+                                myStudent?.name || userAccount?.displayName || 'Academy Student',
+                              studentId: myStudent?.studentId || 'STU-001',
+                              classId: course.classId,
+                              courseTitle: course.title,
+                              subjectName: course.subjectName,
+                              certificateNumber:
+                                prog.certificateNumber || `CERT-${course.id.slice(0, 6).toUpperCase()}`,
+                              issuedAt: prog.certificateIssuedAt || new Date().toISOString(),
+                              instructorName: course.instructorName,
+                              settings,
+                            })
+                          }
+                          className="inline-flex items-center gap-1.5 px-3 py-2 min-h-[44px] rounded-xl bg-[#D9AD43] text-[#102D23] text-xs font-bold cursor-pointer"
+                        >
+                          <Award className="w-3.5 h-3.5" />
+                          Certificate PDF
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Quiz Results History & Earned Certificates */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="bg-white dark:bg-[#102D23] border border-[#D9AD43]/30 rounded-xl p-6 space-y-3">
+              <h3 className="font-serif text-xl font-semibold text-[#06452C] dark:text-white">
+                Quiz Results History
+              </h3>
+              {lmsSummary.quizHistory.length > 0 ? (
+                <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+                  {lmsSummary.quizHistory.map((item) => (
+                    <div
+                      key={`${item.lessonId}-att-${item.attempt.attemptNumber}-${item.attempt.submittedAt}`}
+                      className="p-3 rounded-lg bg-[#F8F1DF]/60 dark:bg-[#081A14] border border-[#D9AD43]/25 flex items-center justify-between gap-3 text-xs"
+                    >
+                      <div className="min-w-0">
+                        <p className="font-semibold truncate">{item.lessonTitle}</p>
+                        <p className="text-[11px] text-[#5A6D64] dark:text-[#DED7C5] truncate">
+                          {item.courseTitle} · Attempt #{item.attempt.attemptNumber} ·{' '}
+                          {item.attempt.submittedAt.slice(0, 10)}
+                        </p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="font-bold tabular-nums">
+                          {item.attempt.score}/{item.attempt.totalQuestions} ({item.attempt.percentage}%)
+                        </p>
+                        <span
+                          className={`inline-block text-[10px] font-semibold px-2 py-0.5 rounded mt-0.5 ${
+                            item.attempt.passed
+                              ? 'bg-[#06452C] text-white'
+                              : 'bg-[#D9AD43]/25 text-[#8A6518] dark:text-[#D9AD43]'
+                          }`}
+                        >
+                          {item.attempt.passed ? 'Passed' : 'Retry'}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-[#5A6D64] dark:text-[#DED7C5]">
+                  Complete a lesson video and submit its MCQ quiz to view graded attempt history here.
+                </p>
+              )}
+            </div>
+
+            <div className="bg-white dark:bg-[#102D23] border border-[#D9AD43]/30 rounded-xl p-6 space-y-3">
+              <h3 className="font-serif text-xl font-semibold text-[#06452C] dark:text-white flex items-center gap-2">
+                <Award className="w-5 h-5 text-[#D9AD43]" />
+                <span>Course Completion Certificates</span>
+              </h3>
+              {lmsSummary.certificates.length > 0 ? (
+                <div className="space-y-3">
+                  {lmsSummary.certificates.map((cert) => (
+                    <div
+                      key={cert.course.id}
+                      className="p-4 rounded-xl border-2 border-[#D9AD43]/50 bg-[#06452C] text-[#F8F1DF] flex items-center justify-between gap-3"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-semibold text-[#D9AD43]">
+                          {cert.certificateNumber}
+                        </p>
+                        <p className="font-serif text-lg font-semibold truncate">{cert.course.title}</p>
+                        <p className="text-xs text-[#E6DFCE]">
+                          Completed on {cert.issuedAt.slice(0, 10)}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          downloadCourseCompletionCertificatePdf({
+                            studentName:
+                              myStudent?.name || userAccount?.displayName || 'Academy Student',
+                            studentId: myStudent?.studentId || 'STU-001',
+                            classId: cert.course.classId,
+                            courseTitle: cert.course.title,
+                            subjectName: cert.course.subjectName,
+                            certificateNumber: cert.certificateNumber,
+                            issuedAt: cert.issuedAt,
+                            instructorName: cert.course.instructorName,
+                            settings,
+                          })
+                        }
+                        className="inline-flex items-center gap-1.5 px-3.5 py-2 min-h-[44px] rounded-lg bg-[#D9AD43] text-[#102D23] text-xs font-bold cursor-pointer shrink-0"
+                      >
+                        <Download className="w-4 h-4" />
+                        Download PDF
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-[#5A6D64] dark:text-[#DED7C5]">
+                  Pass every sequential lesson &amp; MCQ quiz in a course (100% completion) to unlock
+                  your signed Academy Completion Certificate PDF.
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Existing Scheduled Live Classes (Preserved) */}
           <div className="bg-white dark:bg-[#102D23] border border-[#D9AD43]/30 rounded-xl p-6">
             <h3 className="font-serif text-xl font-semibold mb-4">Scheduled Live Classes</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -541,7 +1059,8 @@ export const StudentPortalView: React.FC = () => {
                         rel="noreferrer"
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#06452C] text-white text-xs font-semibold"
                       >
-                        <Video className="w-3.5 h-3.5" /> Join Live Session <ExternalLink className="w-3 h-3" />
+                        <Video className="w-3.5 h-3.5" /> Join Live Session{' '}
+                        <ExternalLink className="w-3 h-3" />
                       </a>
                     ) : (
                       <span className="text-xs text-[#8A6518] dark:text-[#D9AD43]">
@@ -553,134 +1072,6 @@ export const StudentPortalView: React.FC = () => {
                   </div>
                 </div>
               ))}
-            </div>
-          </div>
-
-          <div className="bg-white dark:bg-[#102D23] border border-[#D9AD43]/30 rounded-xl p-6 space-y-5">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <h3 className="font-serif text-xl font-semibold">LMS Courses, Lessons &amp; Progress</h3>
-                <p className="text-xs text-[#5A6D64] dark:text-[#DED7C5]">
-                  Complete recorded lessons and Islamic/General mastery quizzes.
-                </p>
-              </div>
-              <span className="text-xs font-semibold px-3 py-1 rounded-lg bg-[#06452C] text-[#F8F1DF] tabular-nums">
-                Quizzes Passed: {DEMO_QUIZZES.filter((q) => quizAnswers[q.id] === q.correctIndex).length}/
-                {DEMO_QUIZZES.length}
-              </span>
-            </div>
-
-            <div className="space-y-4">
-              {(myCourses.length > 0 ? myCourses : courses).map((course) => {
-                const courseLessons = lessons.filter((l) => l.courseId === course.id);
-                const doneCount = courseLessons.filter((l) => completedLessons[l.id]).length;
-                const pct = courseLessons.length
-                  ? Math.round((doneCount / courseLessons.length) * 100)
-                  : 0;
-                return (
-                  <div
-                    key={course.id}
-                    className="p-4 rounded-xl border border-[#D9AD43]/25 bg-[#F8F1DF]/50 dark:bg-[#081A14]"
-                  >
-                    <div className="flex flex-wrap items-start justify-between gap-2">
-                      <div>
-                        <p className="text-xs font-semibold text-[#8A6518] dark:text-[#D9AD43]">
-                          {course.subjectName} · {course.classId} · {course.instructorName}
-                        </p>
-                        <h4 className="font-serif text-lg font-semibold mt-0.5">{course.title}</h4>
-                      </div>
-                      <span className="text-xs font-semibold tabular-nums text-[#06452C] dark:text-[#D9AD43]">
-                        {pct}% Complete
-                      </span>
-                    </div>
-                    <p className="text-xs text-[#5A6D64] dark:text-[#DED7C5] mb-3">{course.description}</p>
-                    <div className="space-y-2">
-                      {courseLessons.map((les) => (
-                        <div
-                          key={les.id}
-                          className="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-lg bg-white dark:bg-[#102D23] border border-[#D9AD43]/20"
-                        >
-                          <div className="min-w-0 flex-1">
-                            <p className="text-xs font-semibold">
-                              {les.chapterTitle}: {les.title}
-                            </p>
-                            <p className="text-[11px] text-[#5A6D64] dark:text-[#DED7C5]">{les.notes}</p>
-                          </div>
-                          <div className="flex flex-wrap gap-1.5">
-                            <button
-                              type="button"
-                              onClick={() => toggleBookmark(les.id)}
-                              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-semibold cursor-pointer ${
-                                bookmarks.includes(les.id)
-                                  ? 'bg-[#D9AD43] text-[#102D23]'
-                                  : 'border border-[#D9AD43]/40'
-                              }`}
-                            >
-                              <Bookmark className="w-3 h-3" />
-                              {bookmarks.includes(les.id) ? 'Bookmarked' : 'Bookmark'}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => toggleLessonComplete(les.id)}
-                              className={`px-2.5 py-1 rounded text-xs font-semibold cursor-pointer ${
-                                completedLessons[les.id]
-                                  ? 'bg-[#06452C] text-white'
-                                  : 'border border-[#06452C] dark:border-[#D9AD43]'
-                              }`}
-                            >
-                              {completedLessons[les.id] ? 'Completed' : 'Mark Done'}
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="pt-4 border-t border-[#D9AD43]/25 space-y-3">
-              <h4 className="font-serif text-lg font-semibold text-[#06452C] dark:text-[#D9AD43]">
-                Quick Mastery Quizzes (Islamic &amp; General)
-              </h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {DEMO_QUIZZES.map((q) => {
-                  const chosen = quizAnswers[q.id];
-                  const answered = chosen !== undefined;
-                  return (
-                    <div
-                      key={q.id}
-                      className="p-3.5 rounded-lg bg-[#F8F1DF]/60 dark:bg-[#081A14] border border-[#D9AD43]/25 space-y-2"
-                    >
-                      <p className="text-xs font-semibold flex items-start gap-1.5">
-                        <HelpCircle className="w-3.5 h-3.5 text-[#D9AD43] shrink-0 mt-0.5" />
-                        <span>{q.question}</span>
-                      </p>
-                      <div className="grid grid-cols-2 gap-1.5">
-                        {q.options.map((opt, idx) => (
-                          <button
-                            key={opt}
-                            type="button"
-                            onClick={() => selectQuizOption(q.id, idx)}
-                            className={`text-left px-2.5 py-1.5 rounded text-[11px] border cursor-pointer ${
-                              answered && idx === q.correctIndex
-                                ? 'bg-[#06452C] text-white border-[#06452C]'
-                                : chosen === idx
-                                ? 'bg-[#FDF2F2] text-[#7F1D1D] border-[#E5B4B4]'
-                                : 'bg-white dark:bg-[#102D23] border-[#D9AD43]/30'
-                            }`}
-                          >
-                            {opt}
-                          </button>
-                        ))}
-                      </div>
-                      {answered && (
-                        <p className="text-[11px] text-[#5A6D64] dark:text-[#DED7C5]">{q.explanation}</p>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
             </div>
           </div>
         </div>
@@ -890,6 +1281,11 @@ export const ParentPortalView: React.FC = () => {
   }, [students, userAccount]);
 
   const [selectedId, setSelectedId] = useState<string>(linkedChildren[0]?.id || '');
+  useEffect(() => {
+    if ((!selectedId || !linkedChildren.some((c) => c.id === selectedId)) && linkedChildren[0]?.id) {
+      setSelectedId(linkedChildren[0].id);
+    }
+  }, [linkedChildren, selectedId]);
   const activeChild = linkedChildren.find((c) => c.id === selectedId) || linkedChildren[0];
 
   const childAtt = attendance.filter(

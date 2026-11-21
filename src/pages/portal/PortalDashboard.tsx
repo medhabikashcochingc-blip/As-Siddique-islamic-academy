@@ -7,10 +7,10 @@ import {
   AccountsPortalView,
   ParentPortalView,
   PrincipalPortalView,
-  StudentPortalView,
   SuperAdminPortalView,
   TeacherPortalView,
 } from './RoleViews';
+import { StudentPortalApp } from '../student/StudentPortalApp';
 import { AcademicsAndAttendance } from './modules/AcademicsAndAttendance';
 import { ExamsAndCertificates } from './modules/ExamsAndCertificates';
 import { FinanceAndGovernance } from './modules/FinanceAndGovernance';
@@ -73,6 +73,11 @@ export const PortalDashboard: React.FC = () => {
     return <Navigate to="/login" replace />;
   }
 
+  // Strict portal separation: genuine student accounts stay in the dedicated mobile-first Student Portal
+  if (userAccount.role === 'student') {
+    return <Navigate to="/student" replace />;
+  }
+
   const renderModule = () => {
     switch (activeModule) {
       case 'super-admin-home':
@@ -82,7 +87,7 @@ export const PortalDashboard: React.FC = () => {
       case 'accounts-home':
         return <AccountsPortalView onNavigateModule={(key) => setActiveModule(key)} />;
       case 'student-home':
-        return <StudentPortalView />;
+        return <StudentPortalApp embeddedPreview />;
       case 'parent-home':
         return <ParentPortalView />;
       case 'teacher-home':

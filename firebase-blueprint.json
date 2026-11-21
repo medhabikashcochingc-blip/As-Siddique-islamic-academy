@@ -158,6 +158,7 @@
         "phone": { "type": "string", "maxLength": 30 },
         "email": { "type": "string", "maxLength": 160 },
         "photoUrl": { "type": "string", "maxLength": 500 },
+        "photoStoragePath": { "type": "string", "maxLength": 500 },
         "isPublic": { "type": "boolean" },
         "bio": { "type": "string", "maxLength": 1500 },
         "status": { "type": "string", "enum": ["active", "on_leave", "inactive"] }
@@ -437,25 +438,95 @@
         "subjectName": { "type": "string", "maxLength": 120 },
         "track": { "type": "string", "enum": ["general", "islamic"] },
         "instructorName": { "type": "string", "maxLength": 120 },
+        "teacherUid": { "type": "string", "maxLength": 128 },
         "description": { "type": "string", "maxLength": 1200 },
-        "isPublic": { "type": "boolean" }
+        "isPublic": { "type": "boolean" },
+        "chapters": { "type": "array" },
+        "certificateEnabled": { "type": "boolean" }
       },
       "required": ["title", "classId", "subjectName", "track"]
     },
     "LmsLesson": {
       "title": "LmsLesson",
-      "description": "Chapter & lesson inside an LMS course.",
+      "description": "Chapter, sequential video lectures, notes, transcript, and sealed MCQ assessment.",
       "type": "object",
       "properties": {
         "courseId": { "type": "string", "maxLength": 128 },
+        "chapterId": { "type": "string", "maxLength": 128 },
         "chapterTitle": { "type": "string", "maxLength": 160 },
         "title": { "type": "string", "maxLength": 180 },
         "order": { "type": "number" },
-        "videoUrl": { "type": "string", "maxLength": 500 },
+        "videoType": { "type": "string", "enum": ["youtube", "upload", "url"] },
+        "videoUrl": { "type": "string", "maxLength": 1000 },
+        "videoStoragePath": { "type": "string", "maxLength": 500 },
+        "durationSeconds": { "type": "number" },
+        "lectures": { "type": "array" },
         "pdfUrl": { "type": "string", "maxLength": 500 },
-        "notes": { "type": "string", "maxLength": 3000 }
+        "notes": { "type": "string", "maxLength": 5000 },
+        "transcript": { "type": "string", "maxLength": 12000 },
+        "passingPercentage": { "type": "number" },
+        "maxAttempts": { "type": "number" },
+        "randomizeQuestions": { "type": "boolean" },
+        "quizQuestionsPublic": { "type": "array" },
+        "sealedAnswerKey": { "type": "string", "maxLength": 12000 },
+        "teacherUid": { "type": "string", "maxLength": 128 }
       },
       "required": ["courseId", "chapterTitle", "title"]
+    },
+    "LmsQuestionBank": {
+      "title": "LmsQuestionBank",
+      "description": "Instructor-only authoritative MCQ answer key and explanations per lesson.",
+      "type": "object",
+      "properties": {
+        "lessonId": { "type": "string", "maxLength": 128 },
+        "courseId": { "type": "string", "maxLength": 128 },
+        "teacherUid": { "type": "string", "maxLength": 128 },
+        "passingPercentage": { "type": "number" },
+        "maxAttempts": { "type": "number" },
+        "randomizeQuestions": { "type": "boolean" },
+        "questions": { "type": "array" }
+      },
+      "required": ["lessonId", "courseId", "passingPercentage", "questions"]
+    },
+    "LmsCourseProgress": {
+      "title": "LmsCourseProgress",
+      "description": "Per-student sequential course video watch progress, quiz attempts, and lesson unlocks.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 200 },
+        "studentUid": { "type": "string", "maxLength": 128 },
+        "studentId": { "type": "string", "maxLength": 128 },
+        "studentName": { "type": "string", "maxLength": 120 },
+        "courseId": { "type": "string", "maxLength": 128 },
+        "courseTitle": { "type": "string", "maxLength": 180 },
+        "courseCompletionPercent": { "type": "number" },
+        "completedLessonIds": { "type": "array" },
+        "unlockedLessonIds": { "type": "array" },
+        "passedLessonIds": { "type": "array" },
+        "lastWatchedLessonId": { "type": "string", "maxLength": 128 },
+        "lessonProgress": { "type": "object" },
+        "certificateEarned": { "type": "boolean" },
+        "certificateNumber": { "type": "string", "maxLength": 64 },
+        "certificateIssuedAt": { "type": "string", "maxLength": 40 }
+      },
+      "required": ["studentUid", "studentId", "courseId", "courseCompletionPercent", "completedLessonIds", "unlockedLessonIds", "passedLessonIds", "lessonProgress"]
+    },
+    "LmsQaEntry": {
+      "title": "LmsQaEntry",
+      "description": "Lesson-level Q&A questions from students and replies from instructors.",
+      "type": "object",
+      "properties": {
+        "courseId": { "type": "string", "maxLength": 128 },
+        "lessonId": { "type": "string", "maxLength": 128 },
+        "authorUid": { "type": "string", "maxLength": 128 },
+        "authorName": { "type": "string", "maxLength": 120 },
+        "authorRole": { "type": "string", "maxLength": 40 },
+        "question": { "type": "string", "maxLength": 1500 },
+        "answer": { "type": "string", "maxLength": 3000 },
+        "answeredBy": { "type": "string", "maxLength": 120 },
+        "createdAt": { "type": "string", "maxLength": 40 }
+      },
+      "required": ["courseId", "lessonId", "authorUid", "authorName", "question", "createdAt"]
     },
     "LiveClassSession": {
       "title": "LiveClassSession",
@@ -616,6 +687,9 @@
     "/payments/{paymentId}": { "schema": { "$ref": "#/entities/PaymentRecord" }, "description": "Fee payments." },
     "/courses/{courseId}": { "schema": { "$ref": "#/entities/LmsCourse" }, "description": "LMS courses." },
     "/lessons/{lessonId}": { "schema": { "$ref": "#/entities/LmsLesson" }, "description": "LMS chapters and lessons." },
+    "/lmsQuestionBanks/{lessonId}": { "schema": { "$ref": "#/entities/LmsQuestionBank" }, "description": "Instructor-only MCQ answer banks per lesson." },
+    "/lmsProgress/{progressId}": { "schema": { "$ref": "#/entities/LmsCourseProgress" }, "description": "Student sequential LMS progress and quiz history." },
+    "/lmsQa/{qaId}": { "schema": { "$ref": "#/entities/LmsQaEntry" }, "description": "Lesson Q&A questions and instructor answers." },
     "/liveClasses/{liveClassId}": { "schema": { "$ref": "#/entities/LiveClassSession" }, "description": "Live classes." },
     "/learningMaterials/{materialId}": { "schema": { "$ref": "#/entities/LearningMaterial" }, "description": "Uploaded study materials." },
     "/library/{libraryId}": { "schema": { "$ref": "#/entities/LibraryResource" }, "description": "Digital library resources." },

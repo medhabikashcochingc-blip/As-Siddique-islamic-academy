@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Calendar, Download, Plus, AlertTriangle } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import { usePlatform } from '../../../context/PlatformContext';
@@ -57,6 +57,14 @@ export const AcademicsAndAttendance: React.FC<{
   const [tajweedGrade, setTajweedGrade] = useState(selectedStudent?.islamicProgress.tajweedGrade || 'A');
   const [hifzJuz, setHifzJuz] = useState(selectedStudent?.islamicProgress.hifzJuzCompleted || 0);
   const [noticeText, setNoticeText] = useState('');
+
+  useEffect(() => {
+    if (selectedStudent) {
+      setQuranSurah(selectedStudent.islamicProgress.quranSurah || '');
+      setTajweedGrade(selectedStudent.islamicProgress.tajweedGrade || 'A');
+      setHifzJuz(selectedStudent.islamicProgress.hifzJuzCompleted || 0);
+    }
+  }, [selectedStudent]);
 
   const handleAddSubject = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -555,7 +563,7 @@ export const AcademicsAndAttendance: React.FC<{
 
           <form
             onSubmit={handleAddTimetable}
-            className="bg-white dark:bg-[#102D23] border border-[#D9AD43]/40 rounded-xl p-5 grid grid-cols-1 sm:grid-cols-6 gap-3"
+            className="bg-white dark:bg-[#102D23] border border-[#D9AD43]/40 rounded-xl p-5 grid grid-cols-1 sm:grid-cols-7 gap-3"
           >
             <select
               value={ttClass}
@@ -578,9 +586,19 @@ export const AcademicsAndAttendance: React.FC<{
             <input
               type="text"
               required
+              aria-label="Start time"
               value={ttStart}
               onChange={(e) => setTtStart(e.target.value)}
-              placeholder="09:00"
+              placeholder="Start 09:00"
+              className="px-3 py-2 text-xs bg-[#F8F1DF] dark:bg-[#081A14] border border-[#D9AD43]/30 rounded-lg"
+            />
+            <input
+              type="text"
+              required
+              aria-label="End time"
+              value={ttEnd}
+              onChange={(e) => setTtEnd(e.target.value)}
+              placeholder="End 09:45"
               className="px-3 py-2 text-xs bg-[#F8F1DF] dark:bg-[#081A14] border border-[#D9AD43]/30 rounded-lg"
             />
             <input

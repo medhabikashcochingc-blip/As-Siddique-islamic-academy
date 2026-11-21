@@ -148,10 +148,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         );
       } else if (code === 'auth/popup-blocked') {
         setAuthError(
-          'Sign-in popup was blocked by the browser. Please allow popups for this site and click Continue with Google Sign-In again.'
+          'Sign-in popup was blocked by your mobile or desktop browser. Please allow popups for this site and tap Continue with Google Sign-In again.'
         );
-      } else if (code === 'auth/popup-closed-by-user') {
-        setAuthError('Sign-in popup was closed before completing authentication.');
+      } else if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
+        setAuthError('Sign-in was cancelled before completing authentication.');
+      } else if (code === 'auth/network-request-failed') {
+        setAuthError(
+          'Network error while contacting Google Sign-In. Please check your internet connection and try again.'
+        );
       } else {
         setAuthError(err instanceof Error ? err.message : 'Google Sign-In failed.');
       }

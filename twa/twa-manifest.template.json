@@ -1,0 +1,51 @@
+{
+  "packageId": "in.assiddiqueacademy.app",
+  "host": "gen-lang-client-0175021821.web.app",
+  "name": "As-Siddique Islamic Academy",
+  "launcherName": "As-Siddique Academy",
+  "display": "standalone",
+  "themeColor": "#06452C",
+  "navigationColor": "#06452C",
+  "navigationColorDark": "#081A14",
+  "navigationDividerColor": "#D9AD43",
+  "backgroundColor": "#F8F1DF",
+  "enableNotifications": true,
+  "startUrl": "/",
+  "iconUrl": "https://gen-lang-client-0175021821.web.app/pwa-512x512.png",
+  "maskableIconUrl": "https://gen-lang-client-0175021821.web.app/pwa-maskable-512x512.png",
+  "monochromeIconUrl": "https://gen-lang-client-0175021821.web.app/pwa-maskable-512x512.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "./twa/android-release.keystore",
+    "alias": "assiddique-release-key"
+  },
+  "appVersionName": "1.0.0",
+  "appVersionCode": 1,
+  "shortcuts": [
+    {
+      "name": "Result Portal",
+      "shortName": "Results",
+      "url": "https://gen-lang-client-0175021821.web.app/results",
+      "chosenIconUrl": "https://gen-lang-client-0175021821.web.app/pwa-192x192.png"
+    },
+    {
+      "name": "Online Admission",
+      "shortName": "Admission",
+      "url": "https://gen-lang-client-0175021821.web.app/admission",
+      "chosenIconUrl": "https://gen-lang-client-0175021821.web.app/pwa-192x192.png"
+    }
+  ],
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "https://gen-lang-client-0175021821.web.app/manifest.webmanifest",
+  "fallbackType": "customtabs",
+  "features": {
+    "playBilling": {
+      "enabled": false
+    }
+  },
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "orientation": "default",
+  "fingerprints": []
+}

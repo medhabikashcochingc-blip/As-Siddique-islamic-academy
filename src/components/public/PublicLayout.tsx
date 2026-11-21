@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
-import { ChevronDown, Menu, Moon, Sun, X } from 'lucide-react';
+import { BookOpen, ChevronDown, Home, Mail, Menu, Moon, Sun, Users, X } from 'lucide-react';
 import { AcademyEmblem } from '../AcademyEmblem';
+import { PWAInstallBanner, PWAInstallButton } from '../pwa/PWAInstallButton';
 import { useAuth } from '../../context/AuthContext';
 import { usePlatform } from '../../context/PlatformContext';
 import { TRANSLATIONS } from '../../lib/i18n';
@@ -32,7 +33,8 @@ export const PublicLayout: React.FC<{ children: React.ReactNode }> = ({ children
   const t = TRANSLATIONS[language];
 
   return (
-    <div className="min-h-screen flex flex-col overflow-x-hidden bg-[#F8F1DF] text-[#102D23] dark:bg-[#081A14] dark:text-[#F8F1DF]">
+    <div className="min-h-screen flex flex-col overflow-x-hidden pb-16 lg:pb-0 bg-[#F8F1DF] text-[#102D23] dark:bg-[#081A14] dark:text-[#F8F1DF]">
+      <PWAInstallBanner />
       {/* 1. Contact Information & Utility Top Bar */}
       <div className="no-print bg-[#102D23] text-[#F8F1DF] border-b border-[#D9AD43]/25 text-xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex flex-wrap items-center justify-between gap-3">
@@ -85,7 +87,14 @@ export const PublicLayout: React.FC<{ children: React.ReactNode }> = ({ children
             </button>
 
             <Link
-              to={userAccount ? '/portal' : '/login'}
+              to="/student"
+              className="font-semibold text-[#F8F1DF] hover:text-[#D9AD43] hover:underline whitespace-nowrap"
+            >
+              Student Portal
+            </Link>
+            <span className="text-[#D9AD43]/40" aria-hidden="true">|</span>
+            <Link
+              to={userAccount ? (userAccount.role === 'student' ? '/student' : '/portal') : '/login'}
               className="font-semibold text-[#D9AD43] hover:underline whitespace-nowrap"
             >
               {userAccount
@@ -199,7 +208,14 @@ export const PublicLayout: React.FC<{ children: React.ReactNode }> = ({ children
             </div>
           </nav>
 
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            <div className="inline-flex sm:hidden">
+              <PWAInstallButton variant="header" />
+            </div>
+            <div className="hidden sm:inline-flex">
+              <PWAInstallButton variant="header" />
+            </div>
+
             <button
               type="button"
               onClick={() => navigate('/admission')}
@@ -231,7 +247,11 @@ export const PublicLayout: React.FC<{ children: React.ReactNode }> = ({ children
               { label: 'Online Result Portal', to: '/results' },
               { label: t.nav.admission, to: '/admission' },
               ...MORE_PAGES,
-              { label: userAccount ? 'Open Portal Dashboard' : 'Portal Sign In', to: userAccount ? '/portal' : '/login' },
+              { label: 'Student Portal (LMS)', to: '/student' },
+              {
+                label: userAccount ? 'Open Portal Dashboard' : 'Portal Sign In',
+                to: userAccount ? (userAccount.role === 'student' ? '/student' : '/portal') : '/login',
+              },
             ].map((item) => (
               <Link
                 key={item.to}
@@ -242,6 +262,9 @@ export const PublicLayout: React.FC<{ children: React.ReactNode }> = ({ children
                 {item.label}
               </Link>
             ))}
+            <div className="pt-2 px-3">
+              <PWAInstallButton variant="header" />
+            </div>
           </div>
         )}
       </header>
@@ -313,6 +336,38 @@ export const PublicLayout: React.FC<{ children: React.ReactNode }> = ({ children
           </div>
         </div>
       </footer>
+
+      {/* Mobile Bottom Navigation Bar: Home, Courses, Teachers, Contact */}
+      <nav
+        aria-label="Mobile Quick Navigation"
+        className="no-print fixed bottom-0 inset-x-0 z-40 h-16 bg-[#102D23] text-[#F8F1DF] border-t border-[#D9AD43]/35 lg:hidden pb-safe"
+      >
+        <div className="h-full max-w-lg mx-auto grid grid-cols-4">
+          {[
+            { label: t.nav.home, to: '/', icon: Home, end: true },
+            { label: t.nav.courses, to: '/courses', icon: BookOpen, end: false },
+            { label: t.nav.teachers, to: '/teachers', icon: Users, end: false },
+            { label: 'Contact', to: '/contact', icon: Mail, end: false },
+          ].map((item) => {
+            const Icon = item.icon;
+            return (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.end}
+                className={({ isActive }) =>
+                  `flex flex-col items-center justify-center gap-0.5 text-[11px] font-semibold ${
+                    isActive ? 'text-[#D9AD43]' : 'text-[#DED7C5] hover:text-white'
+                  }`
+                }
+              >
+                <Icon className="w-5 h-5" />
+                <span>{item.label}</span>
+              </NavLink>
+            );
+          })}
+        </div>
+      </nav>
     </div>
   );
 };

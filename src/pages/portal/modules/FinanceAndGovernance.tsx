@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   AlertTriangle,
   CheckCircle2,
@@ -72,6 +72,10 @@ export const FinanceAndGovernance: React.FC<{
     null
   );
   const [checkingFb, setCheckingFb] = useState(false);
+
+  useEffect(() => {
+    setCmsForm(settings);
+  }, [settings]);
 
   const handleCreateInvoice = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -509,6 +513,7 @@ export const FinanceAndGovernance: React.FC<{
                 <tr className="text-left border-b border-[#EFE6D2] text-xs uppercase text-[#8A6518]">
                   <th className="p-4">User</th>
                   <th className="p-4">Role</th>
+                  <th className="p-4">Student Profile Link</th>
                   <th className="p-4">Status</th>
                   <th className="p-4 text-right">Account Control</th>
                 </tr>
@@ -537,6 +542,40 @@ export const FinanceAndGovernance: React.FC<{
                           </option>
                         ))}
                       </select>
+                    </td>
+                    <td className="p-4">
+                      {u.role === 'student' ? (
+                        <select
+                          value={u.linkedStudentId || ''}
+                          onChange={async (e) => {
+                            const nextId = e.target.value;
+                            await upsertRecord('users', u.uid, {
+                              ...u,
+                              linkedStudentId: nextId,
+                            });
+                            if (nextId) {
+                              const st = students.find((s) => s.id === nextId || s.studentId === nextId);
+                              if (st) {
+                                await upsertRecord('students', st.id, {
+                                  ...st,
+                                  studentUid: u.uid,
+                                });
+                              }
+                            }
+                            setFeedback(`Linked ${u.displayName} to student record ${nextId || 'none'}.`);
+                          }}
+                          className="px-2.5 py-1.5 text-xs bg-[#F8F1DF] dark:bg-[#081A14] border border-[#D9AD43]/30 rounded max-w-[200px]"
+                        >
+                          <option value="">Not Linked</option>
+                          {students.map((st) => (
+                            <option key={st.id} value={st.id}>
+                              {st.name} ({st.admissionNumber})
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <span className="text-xs text-[#5A6D64]">—</span>
+                      )}
                     </td>
                     <td className="p-4 text-xs font-semibold capitalize">{u.status}</td>
                     <td className="p-4 text-right">

@@ -163,6 +163,7 @@ export interface TeacherRecord {
   phone?: string;
   email?: string;
   photoUrl?: string;
+  photoStoragePath?: string;
   isPublic: boolean;
   bio: string;
   status: 'active' | 'on_leave' | 'inactive';
@@ -328,6 +329,12 @@ export interface PaymentRecord {
   parentUid?: string;
 }
 
+export interface LmsCourseChapter {
+  id: string;
+  title: string;
+  order: number;
+}
+
 export interface LmsCourse {
   id: string;
   title: string;
@@ -336,20 +343,137 @@ export interface LmsCourse {
   subjectName: string;
   track: 'general' | 'islamic';
   instructorName: string;
+  teacherUid?: string;
   description: string;
   isPublic: boolean;
+  chapters?: LmsCourseChapter[];
+  certificateEnabled?: boolean;
+}
+
+export interface LmsLecture {
+  id: string;
+  title: string;
+  videoType: 'youtube' | 'upload' | 'url';
+  videoUrl: string;
+  storagePath?: string;
+  durationSeconds?: number;
+  transcript?: string;
+}
+
+export interface LmsPublicMcqQuestion {
+  id: string;
+  question: string;
+  options: [string, string, string, string];
+}
+
+export interface LmsMcqQuestion extends LmsPublicMcqQuestion {
+  correctIndex: 0 | 1 | 2 | 3;
+  explanation: string;
+}
+
+export interface LmsQuestionBankDoc {
+  id: string;
+  lessonId: string;
+  courseId: string;
+  teacherUid?: string;
+  passingPercentage: number;
+  maxAttempts: number;
+  randomizeQuestions: boolean;
+  questions: LmsMcqQuestion[];
+  updatedAt?: unknown;
 }
 
 export interface LmsLesson {
   id: string;
   courseId: string;
+  chapterId?: string;
   chapterTitle: string;
   title: string;
   order: number;
+  videoType?: 'youtube' | 'upload' | 'url';
   videoUrl?: string;
+  videoStoragePath?: string;
+  durationSeconds?: number;
+  lectures?: LmsLecture[];
   pdfUrl?: string;
   notes: string;
+  transcript?: string;
+  passingPercentage?: number;
+  maxAttempts?: number;
+  randomizeQuestions?: boolean;
+  quizQuestionsPublic?: LmsPublicMcqQuestion[];
+  sealedAnswerKey?: string;
+  teacherUid?: string;
 }
+
+export interface LmsQuizQuestionResult {
+  questionId: string;
+  selectedIndex: number;
+  correctIndex: number;
+  correct: boolean;
+  explanation: string;
+}
+
+export interface LmsQuizAttempt {
+  attemptNumber: number;
+  submittedAt: string;
+  answers: Record<string, number>;
+  score: number;
+  totalQuestions: number;
+  percentage: number;
+  passed: boolean;
+  results: LmsQuizQuestionResult[];
+  serverReceiptSig: string;
+}
+
+export interface LmsLessonProgress {
+  lessonId: string;
+  videoWatchSeconds: number;
+  durationSeconds: number;
+  maxWatchedPercent: number;
+  lastPlaybackPosition: number;
+  videoCompleted: boolean;
+  watchProofToken?: string;
+  unlocked: boolean;
+  passed: boolean;
+  bestScorePercent: number;
+  attemptsCount: number;
+  attempts: LmsQuizAttempt[];
+  updatedAt: string;
+}
+
+export interface LmsCourseProgress {
+  id: string;
+  studentUid: string;
+  studentId: string;
+  studentName?: string;
+  courseId: string;
+  courseTitle?: string;
+  courseCompletionPercent: number;
+  completedLessonIds: string[];
+  unlockedLessonIds: string[];
+  passedLessonIds: string[];
+  lastWatchedLessonId?: string;
+  lessonProgress: Record<string, LmsLessonProgress>;
+  certificateEarned?: boolean;
+  certificateNumber?: string;
+  certificateIssuedAt?: string;
+  updatedAt?: unknown;
+}
+
+export interface LmsQaEntry {
+  id: string;
+  courseId: string;
+  lessonId: string;
+  authorUid: string;
+  authorName: string;
+  authorRole: UserRole;
+  question: string;
+  answer?: string;
+  answeredBy?: string;
+  createdAt: string;
+}
+
 
 export interface LiveClassSession {
   id: string;

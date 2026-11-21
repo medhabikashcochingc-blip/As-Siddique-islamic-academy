@@ -43,6 +43,7 @@ import {
   X,
 } from 'lucide-react';
 import { AcademyEmblem } from '../../components/AcademyEmblem';
+import { PWAInstallButton } from '../../components/pwa/PWAInstallButton';
 import { useAuth } from '../../context/AuthContext';
 import { usePlatform } from '../../context/PlatformContext';
 import { hasPermission, PermissionKey, ROLE_DEFINITIONS } from '../../lib/permissions';
@@ -325,6 +326,8 @@ export const PortalLayout: React.FC<{
           </div>
 
           <div className="flex items-center gap-2.5 shrink-0">
+            <PWAInstallButton variant="portal" />
+
             {/* Language Switcher */}
             <div className="hidden sm:inline-flex border border-[#D9AD43]/40 rounded-lg overflow-hidden">
               {(['en', 'bn', 'ar'] as LanguageCode[]).map((code) => (

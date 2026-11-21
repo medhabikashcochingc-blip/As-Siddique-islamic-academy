@@ -1,0 +1,80 @@
+name: Deploy to Firebase Hosting on Push to Main
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  verify_and_deploy:
+    name: TypeCheck, Lint, Build, Smoke Test & Deploy Hosting
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run TypeScript checks
+        run: npx tsc --noEmit --noUnusedLocals --noUnusedParameters
+
+      - name: Run ESLint security rules check
+        run: npx eslint .
+
+      - name: Build production Vite & PWA bundle
+        run: npm run build
+
+      - name: Verify PWA and Hosting build artifacts
+        run: |
+          test -f dist/index.html
+          test -f dist/manifest.webmanifest
+          test -f dist/sw.js
+          test -f dist/offline.html
+          test -f dist/pwa-192x192.png
+          test -f dist/pwa-512x512.png
+          test -f dist/pwa-maskable-512x512.png
+          test -f dist/apple-touch-icon.png
+          test -f dist/.well-known/assetlinks.json
+
+      - name: Smoke test Express API server against dist/
+        run: |
+          NODE_ENV=production PORT=3099 npx tsx server.ts &
+          SERVER_PID=$!
+          sleep 2
+          curl -fsS http://127.0.0.1:3099/api/health
+          curl -fsS http://127.0.0.1:3099/api/integrations/status
+          curl -fsS http://127.0.0.1:3099/manifest.webmanifest
+          kill $SERVER_PID
+
+      - name: Deploy Express API to Cloud Run (when GCP secrets are configured)
+        if: secrets.GCP_WORKLOAD_IDENTITY_PROVIDER != '' && secrets.GCP_SERVICE_ACCOUNT != ''
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Build and deploy Cloud Run backend service
+        if: secrets.GCP_WORKLOAD_IDENTITY_PROVIDER != '' && secrets.GCP_SERVICE_ACCOUNT != ''
+        run: |
+          gcloud run deploy as-siddique-academy-api \
+            --source . \
+            --project gen-lang-client-0175021821 \
+            --region asia-southeast1 \
+            --allow-unauthenticated \
+            --set-env-vars "NODE_ENV=production,APP_URL=https://gen-lang-client-0175021821.web.app"
+
+      - name: Deploy to Firebase Hosting (Live)
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_GEN_LANG_CLIENT_0175021821 }}
+          channelId: live
+          projectId: gen-lang-client-0175021821

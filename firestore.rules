@@ -180,6 +180,25 @@ service cloud.firestore {
         data.createdAt == request.time;
     }
 
+    function isValidLmsProgress(data, progressId) {
+      return data.keys().hasAll([
+          'id', 'studentUid', 'studentId', 'courseId',
+          'courseCompletionPercent', 'completedLessonIds',
+          'unlockedLessonIds', 'passedLessonIds', 'lessonProgress'
+        ]) &&
+        data.id == progressId &&
+        data.studentUid == request.auth.uid &&
+        progressId == request.auth.uid + '_' + data.courseId &&
+        isNonEmptyString(data.courseId, 1, 128) &&
+        data.courseCompletionPercent is number &&
+        data.courseCompletionPercent >= 0 &&
+        data.courseCompletionPercent <= 100 &&
+        data.completedLessonIds is list &&
+        data.unlockedLessonIds is list &&
+        data.passedLessonIds is list &&
+        data.lessonProgress is map;
+    }
+
     // =========================================================
     // USERS, ROLES & PERMISSIONS
     // =========================================================
@@ -360,6 +379,40 @@ service cloud.firestore {
     match /lessons/{lessonId} {
       allow get, list: if isActiveUser();
       allow create, update, delete: if isValidId(lessonId) && isTeacher();
+    }
+
+    // Instructor-only MCQ answer bank (students never read answer keys directly)
+    match /lmsQuestionBanks/{lessonId} {
+      allow get: if isValidId(lessonId) && isTeacher();
+      allow list: if isTeacher();
+      allow create, update, delete: if isValidId(lessonId) && isTeacher();
+    }
+
+    // Student sequential LMS video progress, watch completion & quiz results
+    match /lmsProgress/{progressId} {
+      allow get: if isValidId(progressId) && (
+        isTeacher() ||
+        (isActiveUser() && (existing().studentUid == request.auth.uid || isLinkedStudent(existing().studentId)))
+      );
+      allow list: if isTeacher() ||
+        (isActiveUser() && (existing().studentUid == request.auth.uid || isLinkedStudent(existing().studentId)));
+      allow create: if isValidId(progressId) && isActiveUser() && isValidLmsProgress(incoming(), progressId);
+      allow update: if isValidId(progressId) && isActiveUser() && isValidLmsProgress(incoming(), progressId) &&
+        existing().studentUid == request.auth.uid && incoming().studentUid == existing().studentUid;
+      allow delete: if isValidId(progressId) && isAdmin();
+    }
+
+    // Lesson Q&A entries
+    match /lmsQa/{qaId} {
+      allow get, list: if isActiveUser();
+      allow create: if isValidId(qaId) && isActiveUser() &&
+        incoming().authorUid == request.auth.uid &&
+        isNonEmptyString(incoming().question, 3, 1500);
+      allow update: if isValidId(qaId) && isTeacher();
+      allow delete: if isValidId(qaId) && (
+        isTeacher() ||
+        (isActiveUser() && existing().authorUid == request.auth.uid)
+      );
     }
 
     match /liveClasses/{liveClassId} {

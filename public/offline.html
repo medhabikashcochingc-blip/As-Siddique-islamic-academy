@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#06452C" />
+    <title>Offline · As-Siddique Islamic Academy</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background-color: #f8f1df;
+        color: #102d23;
+      }
+      @media (prefers-color-scheme: dark) {
+        body {
+          background-color: #081a14;
+          color: #f8f1df;
+        }
+        .card {
+          background-color: #102d23;
+          border-color: rgba(217, 173, 67, 0.35);
+        }
+        .muted {
+          color: #ded7c5;
+        }
+      }
+      .card {
+        width: 100%;
+        max-width: 520px;
+        background-color: #ffffff;
+        border: 1px solid rgba(217, 173, 67, 0.45);
+        border-radius: 16px;
+        padding: 36px 28px;
+        text-align: center;
+        box-shadow: 0 18px 45px rgba(6, 69, 44, 0.08);
+      }
+      .badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 6px;
+        background-color: #06452c;
+        color: #d9ad43;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        margin-bottom: 16px;
+      }
+      h1 {
+        margin: 0 0 10px;
+        font-family: Georgia, 'Times New Roman', serif;
+        font-size: 28px;
+        line-height: 1.25;
+        color: #06452c;
+      }
+      @media (prefers-color-scheme: dark) {
+        h1 {
+          color: #ffffff;
+        }
+      }
+      .tagline {
+        margin: 0 0 16px;
+        font-size: 13px;
+        font-weight: 600;
+        color: #8a6518;
+      }
+      .muted {
+        margin: 0 0 24px;
+        font-size: 14px;
+        line-height: 1.6;
+        color: #314a3f;
+      }
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        justify-content: center;
+      }
+      .btn-primary {
+        padding: 11px 22px;
+        border-radius: 8px;
+        border: none;
+        background-color: #06452c;
+        color: #f8f1df;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+      }
+      .btn-secondary {
+        padding: 11px 22px;
+        border-radius: 8px;
+        border: 1px solid rgba(217, 173, 67, 0.55);
+        background-color: transparent;
+        color: inherit;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+      }
+      .status {
+        margin-top: 22px;
+        padding-top: 16px;
+        border-top: 1px solid rgba(217, 173, 67, 0.25);
+        font-size: 12px;
+        opacity: 0.85;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <div class="badge">Offline Mode</div>
+      <svg width="64" height="64" viewBox="0 0 512 512" fill="none" style="margin: 0 auto 14px; display: block;">
+        <rect width="512" height="512" rx="96" fill="#06452C" />
+        <rect x="132" y="132" width="248" height="248" rx="18" stroke="#D9AD43" stroke-width="16" />
+        <rect x="132" y="132" width="248" height="248" rx="18" transform="rotate(45 256 256)" stroke="#F8F1DF" stroke-width="14" />
+        <circle cx="256" cy="256" r="64" fill="#102D23" />
+        <circle cx="256" cy="186" r="10" fill="#D9AD43" />
+      </svg>
+      <h1>As-Siddique Islamic Academy</h1>
+      <p class="tagline">Learn &bull; Practice &bull; Preach</p>
+      <p class="muted">
+        You are currently offline. Live portal mutations, login, and payment verification require an
+        active internet connection. Reconnect to continue where you left off.
+      </p>
+      <div class="actions">
+        <button type="button" class="btn-primary" onclick="window.location.reload()">
+          Retry Connection
+        </button>
+        <a href="/" class="btn-secondary">Return Home</a>
+      </div>
+      <div class="status" id="conn-status">Waiting for internet connectivity...</div>
+    </main>
+    <script>
+      window.addEventListener('online', function () {
+        var el = document.getElementById('conn-status');
+        if (el) el.textContent = 'Connection restored! Reloading...';
+        window.location.href = '/';
+      });
+    </script>
+  </body>
+</html>

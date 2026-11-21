@@ -1,9 +1,15 @@
 import express, { type Request, type Response } from 'express';
 import crypto from 'crypto';
-import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
+import {
+  gradeLessonQuiz,
+  sealLessonQuiz,
+  verifyFirebaseIdToken,
+  verifyVideoWatchAndMintToken,
+  type ServerMcqQuestion,
+} from './server/lmsSecurity.ts';
 
 dotenv.config();
 
@@ -342,6 +348,192 @@ app.post('/api/notifications/dispatch', (req: Request, res: Response) => {
 });
 
 // =========================================================================
+// SEQUENTIAL LMS ASSESSMENT & WATCH VERIFICATION ROUTES
+// =========================================================================
+app.post('/api/lms/seal-quiz', async (req: Request, res: Response) => {
+  try {
+    await verifyFirebaseIdToken(req.headers.authorization);
+  } catch (err) {
+    res.status(401).json({
+      ok: false,
+      error: err instanceof Error ? err.message : 'UNAUTHORIZED',
+      message: 'Valid Firebase authentication token required to publish lesson assessments.',
+    });
+    return;
+  }
+
+  const { lessonId, courseId, passingPercentage, maxAttempts, randomizeQuestions, questions } =
+    req.body || {};
+
+  if (
+    typeof lessonId !== 'string' ||
+    !lessonId.trim() ||
+    typeof courseId !== 'string' ||
+    !courseId.trim() ||
+    !Array.isArray(questions) ||
+    questions.length === 0 ||
+    questions.length > 50
+  ) {
+    res.status(400).json({
+      ok: false,
+      error: 'INVALID_QUIZ_PAYLOAD',
+      message: 'lessonId, courseId, and 1–50 MCQ questions are required.',
+    });
+    return;
+  }
+
+  const sealed = sealLessonQuiz({
+    lessonId: lessonId.trim(),
+    courseId: courseId.trim(),
+    passingPercentage: Number(passingPercentage || 70),
+    maxAttempts: Number(maxAttempts || 3),
+    randomizeQuestions: Boolean(randomizeQuestions),
+    questions: questions as ServerMcqQuestion[],
+  });
+
+  res.json({
+    ok: true,
+    ...sealed,
+  });
+});
+
+app.post('/api/lms/verify-video-watch', async (req: Request, res: Response) => {
+  let verifiedUser: { uid: string; email: string; emailVerified: boolean };
+  try {
+    verifiedUser = await verifyFirebaseIdToken(req.headers.authorization);
+  } catch (err) {
+    res.status(401).json({
+      videoCompleted: false,
+      error: err instanceof Error ? err.message : 'UNAUTHORIZED',
+      message: 'Sign in with a verified Academy account to verify video completion.',
+    });
+    return;
+  }
+
+  const {
+    courseId,
+    lessonId,
+    watchedSeconds,
+    durationSeconds,
+    maxWatchedPercent,
+    continuousCoverageRatio,
+  } = req.body || {};
+
+  if (
+    typeof courseId !== 'string' ||
+    !courseId.trim() ||
+    typeof lessonId !== 'string' ||
+    !lessonId.trim()
+  ) {
+    res.status(400).json({
+      videoCompleted: false,
+      error: 'INVALID_WATCH_PAYLOAD',
+      message: 'courseId and lessonId are required.',
+    });
+    return;
+  }
+
+  const result = verifyVideoWatchAndMintToken({
+    uid: verifiedUser.uid,
+    courseId: courseId.trim(),
+    lessonId: lessonId.trim(),
+    watchedSeconds: Number(watchedSeconds || 0),
+    durationSeconds: Number(durationSeconds || 0),
+    maxWatchedPercent: Number(maxWatchedPercent || 0),
+    continuousCoverageRatio:
+      continuousCoverageRatio === undefined ? undefined : Number(continuousCoverageRatio),
+  });
+
+  res.json(result);
+});
+
+app.post('/api/lms/grade-quiz', async (req: Request, res: Response) => {
+  let verifiedUser: { uid: string; email: string; emailVerified: boolean };
+  try {
+    verifiedUser = await verifyFirebaseIdToken(req.headers.authorization);
+  } catch (err) {
+    res.status(401).json({
+      ok: false,
+      error: err instanceof Error ? err.message : 'UNAUTHORIZED',
+      message: 'Sign in with a verified Academy account to submit assessment answers.',
+    });
+    return;
+  }
+
+  const clientIp = req.ip || 'unknown';
+  if (!checkRateLimit(`lms-quiz:${verifiedUser.uid}:${clientIp}`, 40)) {
+    res.status(429).json({
+      ok: false,
+      error: 'RATE_LIMITED',
+      message: 'Too many quiz submissions in a short period. Please wait a moment.',
+    });
+    return;
+  }
+
+  const {
+    courseId,
+    lessonId,
+    orderedLessonIds,
+    watchProofToken,
+    sealedAnswerKey,
+    answers,
+    previousAttemptsCount,
+    passedLessonIdsPreviously,
+  } = req.body || {};
+
+  if (
+    typeof courseId !== 'string' ||
+    !courseId.trim() ||
+    typeof lessonId !== 'string' ||
+    !lessonId.trim() ||
+    !Array.isArray(orderedLessonIds) ||
+    !answers ||
+    typeof answers !== 'object'
+  ) {
+    res.status(400).json({
+      ok: false,
+      error: 'INVALID_SUBMISSION_PAYLOAD',
+      message: 'Valid courseId, lessonId, orderedLessonIds, and answers are required.',
+    });
+    return;
+  }
+
+  try {
+    const graded = gradeLessonQuiz({
+      uid: verifiedUser.uid,
+      courseId: courseId.trim(),
+      lessonId: lessonId.trim(),
+      orderedLessonIds: orderedLessonIds.map((id: unknown) => String(id)),
+      watchProofToken: typeof watchProofToken === 'string' ? watchProofToken : undefined,
+      sealedAnswerKey: typeof sealedAnswerKey === 'string' ? sealedAnswerKey : undefined,
+      answers: answers as Record<string, number>,
+      previousAttemptsCount: Math.max(0, Number(previousAttemptsCount || 0)),
+      passedLessonIdsPreviously: Array.isArray(passedLessonIdsPreviously)
+        ? passedLessonIdsPreviously.map((id: unknown) => String(id))
+        : [],
+    });
+    res.json(graded);
+  } catch (err) {
+    const code = err instanceof Error ? err.message : 'GRADING_FAILED';
+    const statusCode =
+      code === 'VIDEO_WATCH_PROOF_REQUIRED' || code === 'MAX_QUIZ_ATTEMPTS_REACHED' ? 403 : 400;
+    const message =
+      code === 'VIDEO_WATCH_PROOF_REQUIRED'
+        ? 'You must watch the full lesson video before submitting the MCQ assessment.'
+        : code === 'MAX_QUIZ_ATTEMPTS_REACHED'
+        ? 'Maximum quiz attempts reached for this lesson. Please contact your instructor.'
+        : code === 'QUIZ_BANK_NOT_AVAILABLE'
+        ? 'Assessment questions have not been sealed by an instructor yet. Please ask your teacher to re-save the quiz.'
+        : 'Unable to grade quiz submission.';
+    res.status(statusCode).json({
+      ok: false,
+      error: code,
+      message,
+    });
+  }
+});
+
+// =========================================================================
 // VITE MIDDLEWARE (DEV) OR STATIC DIST SERVING (PROD)
 // =========================================================================
 async function startServer() {
@@ -358,8 +550,26 @@ async function startServer() {
     app.use(vite.middlewares);
   } else {
     const distPath = path.resolve(__dirname, 'dist');
-    app.use(express.static(distPath));
+    app.use(
+      express.static(distPath, {
+        setHeaders(res, filePath) {
+          if (
+            filePath.endsWith(`${path.sep}sw.js`) ||
+            filePath.endsWith(`${path.sep}manifest.webmanifest`) ||
+            filePath.endsWith(`${path.sep}offline.html`) ||
+            filePath.endsWith(`${path.sep}index.html`)
+          ) {
+            res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+          }
+          if (filePath.endsWith(`${path.sep}.well-known${path.sep}assetlinks.json`)) {
+            res.setHeader('Content-Type', 'application/json');
+            res.setHeader('Cache-Control', 'no-cache, max-age=0');
+          }
+        },
+      })
+    );
     app.get('*', (_req: Request, res: Response) => {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }

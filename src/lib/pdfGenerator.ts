@@ -273,6 +273,77 @@ export function downloadTimetablePdf(
   doc.save(`${title.replace(/\s+/g, '_')}.pdf`);
 }
 
+export function downloadCourseCompletionCertificatePdf(params: {
+  studentName: string;
+  studentId: string;
+  classId: string;
+  courseTitle: string;
+  subjectName: string;
+  certificateNumber: string;
+  issuedAt: string;
+  instructorName: string;
+  settings: InstitutionSettings;
+}) {
+  const {
+    studentName,
+    studentId,
+    classId,
+    courseTitle,
+    subjectName,
+    certificateNumber,
+    issuedAt,
+    instructorName,
+    settings,
+  } = params;
+
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+  const width = doc.internal.pageSize.getWidth();
+  addAcademyPdfHeader(doc, settings, 'COURSE COMPLETION CERTIFICATE · ONLINE LMS', false);
+
+  doc.setTextColor(16, 45, 35);
+  doc.setFont('times', 'normal');
+  doc.setFontSize(11);
+  doc.text(`Certificate ID: ${certificateNumber}`, 20, 48);
+  doc.text(`Completed On: ${issuedAt.slice(0, 10)}`, width - 20, 48, { align: 'right' });
+
+  doc.setFont('times', 'bold');
+  doc.setFontSize(26);
+  doc.setTextColor(6, 69, 44);
+  doc.text('Certificate of Course Completion', width / 2, 70, { align: 'center' });
+
+  doc.setFont('times', 'normal');
+  doc.setFontSize(14);
+  doc.setTextColor(16, 45, 35);
+  doc.text('This is to proudly certify that', width / 2, 86, { align: 'center' });
+
+  doc.setFont('times', 'bold');
+  doc.setFontSize(21);
+  doc.text(studentName, width / 2, 99, { align: 'center' });
+
+  doc.setFont('times', 'normal');
+  doc.setFontSize(13);
+  const body =
+    `(${studentId} · ${classId}) has successfully watched all required recorded lectures and ` +
+    `passed every sequential lesson MCQ assessment in "${courseTitle}" (${subjectName}) ` +
+    `offered by ${settings.name}.`;
+  const lines = doc.splitTextToSize(body, width - 56);
+  doc.text(lines, width / 2, 114, { align: 'center' });
+
+  doc.setDrawColor(217, 173, 67);
+  doc.circle(width / 2, 158, 12);
+  doc.setFontSize(7.5);
+  doc.text('VERIFIED LMS', width / 2, 159, { align: 'center' });
+
+  doc.setFontSize(11);
+  doc.setDrawColor(16, 45, 35);
+  doc.line(26, 174, 96, 174);
+  doc.line(width - 96, 174, width - 26, 174);
+  doc.text(`Instructor: ${instructorName}`, 61, 181, { align: 'center' });
+  doc.text(`Principal (${settings.principalName})`, width - 61, 181, { align: 'center' });
+
+  doc.save(`LMS_Certificate_${certificateNumber}.pdf`);
+}
+
 export function exportCsvReport(filename: string, headers: string[], rows: (string | number)[][]) {
   const escape = (val: string | number) => `"${String(val).replace(/"/g, '""')}"`;
   const csv = [headers.map(escape).join(','), ...rows.map((r) => r.map(escape).join(','))].join('\n');

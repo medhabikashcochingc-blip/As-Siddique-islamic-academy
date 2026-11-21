@@ -4,8 +4,10 @@ import {
   deleteDoc,
   doc,
   onSnapshot,
+  query,
   serverTimestamp,
   setDoc,
+  where,
   writeBatch,
 } from 'firebase/firestore';
 import {
@@ -30,9 +32,11 @@ import {
   DEMO_GALLERY,
   DEMO_HOMEWORK,
   DEMO_INVOICES,
+  DEMO_LESSON_QUESTION_BANKS,
   DEMO_LESSONS,
   DEMO_LIBRARY,
   DEMO_LIVE_CLASSES,
+  DEMO_LMS_QA,
   DEMO_NOTICES,
   DEMO_PAYMENTS,
   DEMO_RESULTS,
@@ -60,7 +64,10 @@ import {
   LibraryResource,
   LiveClassSession,
   LmsCourse,
+  LmsCourseProgress,
   LmsLesson,
+  LmsQaEntry,
+  LmsQuestionBankDoc,
   NoticeRecord,
   NotificationItem,
   PaymentRecord,
@@ -153,6 +160,9 @@ interface PlatformContextValue {
   payments: PaymentRecord[];
   courses: LmsCourse[];
   lessons: LmsLesson[];
+  lmsQuestionBanks: LmsQuestionBankDoc[];
+  lmsProgress: LmsCourseProgress[];
+  lmsQa: LmsQaEntry[];
   liveClasses: LiveClassSession[];
   library: LibraryResource[];
   notices: NoticeRecord[];
@@ -210,6 +220,9 @@ export const PlatformProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [payments, setPayments] = useState<PaymentRecord[]>(DEMO_PAYMENTS);
   const [courses, setCourses] = useState<LmsCourse[]>(DEMO_COURSES);
   const [lessons, setLessons] = useState<LmsLesson[]>(DEMO_LESSONS);
+  const [lmsQuestionBanks, setLmsQuestionBanks] = useState<LmsQuestionBankDoc[]>(DEMO_LESSON_QUESTION_BANKS);
+  const [lmsProgress, setLmsProgress] = useState<LmsCourseProgress[]>([]);
+  const [lmsQa, setLmsQa] = useState<LmsQaEntry[]>(DEMO_LMS_QA);
   const [liveClasses, setLiveClasses] = useState<LiveClassSession[]>(DEMO_LIVE_CLASSES);
   const [library, setLibrary] = useState<LibraryResource[]>(DEMO_LIBRARY);
   const [notices, setNotices] = useState<NoticeRecord[]>(DEMO_NOTICES);
@@ -339,15 +352,171 @@ export const PlatformProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     bindAuthCol<HomeworkItem>('homework', setHomework, DEMO_HOMEWORK);
     bindAuthCol<AssignmentItem>('assignments', setAssignments, DEMO_ASSIGNMENTS);
     bindAuthCol<LmsLesson>('lessons', setLessons, DEMO_LESSONS);
+    bindAuthCol<LmsQaEntry>('lmsQa', setLmsQa, DEMO_LMS_QA);
     bindAuthCol<LiveClassSession>('liveClasses', setLiveClasses, DEMO_LIVE_CLASSES);
     bindAuthCol<LibraryResource>('library', setLibrary, DEMO_LIBRARY);
     bindAuthCol<ExaminationRecord>('examinations', setExaminations, DEMO_EXAMINATIONS);
     bindAuthCol<FeeStructure>('feeStructures', setFeeStructures, DEMO_FEE_STRUCTURES);
 
+    if (['super_admin', 'admin', 'principal', 'teacher'].includes(effectiveRole)) {
+      bindAuthCol<LmsQuestionBankDoc>('lmsQuestionBanks', setLmsQuestionBanks, DEMO_LESSON_QUESTION_BANKS);
+      bindAuthCol<LmsCourseProgress>('lmsProgress', setLmsProgress, []);
+    } else if (effectiveRole === 'student') {
+      const qStudentProgress = query(
+        collection(db, 'lmsProgress'),
+        where('studentUid', '==', userAccount.uid)
+      );
+      unsubs.push(
+        onSnapshot(
+          qStudentProgress,
+          (snap) => {
+            setLmsProgress(snap.docs.map((d) => ({ ...(d.data() as LmsCourseProgress), id: d.id })));
+          },
+          () => {
+            // Respect permission boundaries silently
+          }
+        )
+      );
+    } else if (effectiveRole === 'parent') {
+      const childIds = [
+        ...(userAccount.linkedStudentIds || []),
+        ...(userAccount.linkedStudentId ? [userAccount.linkedStudentId] : []),
+      ].filter(Boolean);
+      if (childIds.length > 0) {
+        const qParentProgress = query(
+          collection(db, 'lmsProgress'),
+          where('studentId', 'in', childIds.slice(0, 10))
+        );
+        unsubs.push(
+          onSnapshot(
+            qParentProgress,
+            (snap) => {
+              setLmsProgress(snap.docs.map((d) => ({ ...(d.data() as LmsCourseProgress), id: d.id })));
+            },
+            () => {
+              // Respect permission boundaries silently
+            }
+          )
+        );
+      }
+    }
+
     if (['super_admin', 'admin', 'principal', 'teacher', 'accountant', 'staff'].includes(effectiveRole)) {
       bindAuthCol<StudentRecord>('students', setStudents, DEMO_STUDENTS);
       bindAuthCol<AttendanceRecord>('attendance', setAttendance, DEMO_ATTENDANCE);
       bindAuthCol<SubmissionItem>('submissions', setSubmissions, []);
+    } else if (effectiveRole === 'student') {
+      const qMyStudentByUid = query(
+        collection(db, 'students'),
+        where('studentUid', '==', userAccount.uid)
+      );
+      unsubs.push(
+        onSnapshot(
+          qMyStudentByUid,
+          (snap) => {
+            if (!snap.empty) {
+              setStudents(snap.docs.map((d) => ({ ...(d.data() as StudentRecord), id: d.id })));
+            }
+          },
+          () => {
+            // Respect permission boundaries silently
+          }
+        )
+      );
+
+      if (userAccount.linkedStudentId) {
+        unsubs.push(
+          onSnapshot(
+            doc(db, 'students', userAccount.linkedStudentId),
+            (snap) => {
+              if (snap.exists()) {
+                setStudents([{ ...(snap.data() as StudentRecord), id: snap.id }]);
+              }
+            },
+            () => {
+              // Respect permission boundaries silently
+            }
+          )
+        );
+
+        const qMyAtt = query(
+          collection(db, 'attendance'),
+          where('targetId', '==', userAccount.linkedStudentId)
+        );
+        unsubs.push(
+          onSnapshot(
+            qMyAtt,
+            (snap) => {
+              if (!snap.empty) {
+                setAttendance(snap.docs.map((d) => ({ ...(d.data() as AttendanceRecord), id: d.id })));
+              }
+            },
+            () => {}
+          )
+        );
+
+        const qMyInvoices = query(
+          collection(db, 'invoices'),
+          where('studentId', '==', userAccount.linkedStudentId)
+        );
+        unsubs.push(
+          onSnapshot(
+            qMyInvoices,
+            (snap) => {
+              if (!snap.empty) {
+                setInvoices(snap.docs.map((d) => ({ ...(d.data() as FeeInvoice), id: d.id })));
+              }
+            },
+            () => {}
+          )
+        );
+
+        const qMyPayments = query(
+          collection(db, 'payments'),
+          where('studentId', '==', userAccount.linkedStudentId)
+        );
+        unsubs.push(
+          onSnapshot(
+            qMyPayments,
+            (snap) => {
+              if (!snap.empty) {
+                setPayments(snap.docs.map((d) => ({ ...(d.data() as PaymentRecord), id: d.id })));
+              }
+            },
+            () => {}
+          )
+        );
+
+        const qMyCerts = query(
+          collection(db, 'certificates'),
+          where('studentId', '==', userAccount.linkedStudentId)
+        );
+        unsubs.push(
+          onSnapshot(
+            qMyCerts,
+            (snap) => {
+              if (!snap.empty) {
+                setCertificates(snap.docs.map((d) => ({ ...(d.data() as CertificateRecord), id: d.id })));
+              }
+            },
+            () => {}
+          )
+        );
+      }
+
+      const qMySubmissions = query(
+        collection(db, 'submissions'),
+        where('studentUid', '==', userAccount.uid)
+      );
+      unsubs.push(
+        onSnapshot(
+          qMySubmissions,
+          (snap) => {
+            setSubmissions(snap.docs.map((d) => ({ ...(d.data() as SubmissionItem), id: d.id })));
+          },
+          () => {}
+        )
+      );
     }
 
     if (['super_admin', 'admin', 'principal', 'staff'].includes(effectiveRole)) {
@@ -463,6 +632,8 @@ export const PlatformProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       DEMO_GALLERY.forEach((g) => batch.set(doc(db, 'gallery', g.id), g));
       DEMO_COURSES.forEach((c) => batch.set(doc(db, 'courses', c.id), c));
       DEMO_LESSONS.forEach((l) => batch.set(doc(db, 'lessons', l.id), l));
+      DEMO_LESSON_QUESTION_BANKS.forEach((qb) => batch.set(doc(db, 'lmsQuestionBanks', qb.id), qb));
+      DEMO_LMS_QA.forEach((qa) => batch.set(doc(db, 'lmsQa', qa.id), qa));
       DEMO_LIVE_CLASSES.forEach((lv) => batch.set(doc(db, 'liveClasses', lv.id), lv));
       DEMO_LIBRARY.forEach((lb) => batch.set(doc(db, 'library', lb.id), lb));
       DEMO_TIMETABLE.forEach((tt) => batch.set(doc(db, 'timetables', tt.id), tt));
@@ -513,6 +684,9 @@ export const PlatformProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         payments,
         courses,
         lessons,
+        lmsQuestionBanks,
+        lmsProgress,
+        lmsQa,
         liveClasses,
         library,
         notices,

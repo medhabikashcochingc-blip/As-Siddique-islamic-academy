@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { Calendar, CheckCircle2, Mail, MapPin, Phone, Play } from 'lucide-react';
-import { AcademyEmblem, GeometricDivider } from '../components/AcademyEmblem';
+import { GeometricDivider } from '../components/AcademyEmblem';
+import { TeacherPhoto } from '../components/TeacherPhoto';
 import { usePlatform } from '../context/PlatformContext';
 import { PRINCIPAL_PORTRAIT_IMAGE } from '../lib/defaultData';
 
@@ -342,7 +343,7 @@ export const IslamicEducationPage: React.FC = () => {
 };
 
 export const CoursesPage: React.FC = () => {
-  const { courses } = usePlatform();
+  const { courses, lessons } = usePlatform();
   const [track, setTrack] = useState<'all' | 'general' | 'islamic'>('all');
   const filtered = track === 'all' ? courses : courses.filter((c) => c.track === track);
 
@@ -351,7 +352,7 @@ export const CoursesPage: React.FC = () => {
       <PageBanner
         eyebrow="Online LMS & Structured Courses"
         title="Academy Courses"
-        subtitle="Explore General School and Islamic Education courses available across Offline, Online, and Hybrid modes."
+        subtitle="Explore General School and Islamic Education sequential video courses with MCQ mastery assessments."
       />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
         <div className="flex gap-2 mb-8">
@@ -372,33 +373,37 @@ export const CoursesPage: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filtered.map((course) => (
-            <div
-              key={course.id}
-              className="bg-white dark:bg-[#102D23] border border-[#D9AD43]/35 rounded-xl p-6 flex flex-col justify-between"
-            >
-              <div>
-                <p className="text-xs font-semibold text-[#8A6518] dark:text-[#D9AD43] mb-1">
-                  {course.classId} · {course.track === 'islamic' ? 'Islamic Wing' : 'General Wing'}
-                </p>
-                <h3 className="font-serif text-2xl font-semibold text-[#06452C] dark:text-white mb-2">
-                  {course.title}
-                </h3>
-                <p className="text-sm text-[#314A3F] dark:text-[#E6DFCE] mb-4">
-                  {course.description}
-                </p>
+          {filtered.map((course) => {
+            const lessonCount = lessons.filter((l) => l.courseId === course.id).length;
+            return (
+              <div
+                key={course.id}
+                className="bg-white dark:bg-[#102D23] border border-[#D9AD43]/35 rounded-xl p-6 flex flex-col justify-between"
+              >
+                <div>
+                  <p className="text-xs font-semibold text-[#8A6518] dark:text-[#D9AD43] mb-1">
+                    {course.classId} · {course.track === 'islamic' ? 'Islamic Wing' : 'General Wing'} ·{' '}
+                    {lessonCount} {lessonCount === 1 ? 'Video Lesson' : 'Video Lessons'}
+                  </p>
+                  <h3 className="font-serif text-2xl font-semibold text-[#06452C] dark:text-white mb-2">
+                    {course.title}
+                  </h3>
+                  <p className="text-sm text-[#314A3F] dark:text-[#E6DFCE] mb-4">
+                    {course.description}
+                  </p>
+                </div>
+                <div className="pt-4 border-t border-[#EFE6D2] dark:border-[#D9AD43]/20 flex items-center justify-between text-xs">
+                  <span className="text-[#5A6D64] dark:text-[#DED7C5]">{course.instructorName}</span>
+                  <Link
+                    to="/portal"
+                    className="font-semibold text-[#06452C] dark:text-[#D9AD43] hover:underline"
+                  >
+                    Open in Video LMS →
+                  </Link>
+                </div>
               </div>
-              <div className="pt-4 border-t border-[#EFE6D2] dark:border-[#D9AD43]/20 flex items-center justify-between text-xs">
-                <span className="text-[#5A6D64] dark:text-[#DED7C5]">{course.instructorName}</span>
-                <Link
-                  to="/portal"
-                  className="font-semibold text-[#06452C] dark:text-[#D9AD43] hover:underline"
-                >
-                  Open in LMS →
-                </Link>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>
@@ -407,6 +412,10 @@ export const CoursesPage: React.FC = () => {
 
 export const TeachersPage: React.FC = () => {
   const { teachers } = usePlatform();
+  const publicTeachers = teachers
+    .filter((teacher) => teacher.isPublic !== false && teacher.status !== 'inactive')
+    .sort((a, b) => Number(Boolean(a.isDemo)) - Number(Boolean(b.isDemo)));
+
   return (
     <div>
       <PageBanner
@@ -415,27 +424,30 @@ export const TeachersPage: React.FC = () => {
         subtitle="Manage verified faculty profiles directly from the Admin Panel."
       />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 grid grid-cols-1 md:grid-cols-3 gap-6">
-        {teachers.map((teacher) => (
+        {publicTeachers.map((teacher) => (
           <div
             key={teacher.id}
             className="bg-white dark:bg-[#102D23] border border-[#D9AD43]/35 rounded-xl overflow-hidden flex flex-col justify-between"
           >
             <div>
-              <div className="aspect-square bg-[#EFE6D2] dark:bg-[#06452C]">
-                {teacher.photoUrl ? (
-                  <img
-                    src={teacher.photoUrl}
-                    alt={teacher.name}
-                    referrerPolicy="no-referrer"
-                    className="w-full h-full object-cover object-top"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <AcademyEmblem className="w-16 h-16" variant="gold-on-emerald" />
-                  </div>
-                )}
+              <div className="aspect-square bg-[#EFE6D2] dark:bg-[#06452C] overflow-hidden">
+                <TeacherPhoto
+                  photoUrl={teacher.photoUrl}
+                  name={teacher.name}
+                  className="w-full h-full object-cover object-top"
+                  emblemClassName="w-16 h-16"
+                  fallbackBgClassName="w-full h-full flex items-center justify-center"
+                />
               </div>
               <div className="p-6">
+                <p className="text-xs font-medium text-[#8A6518] dark:text-[#D9AD43] mb-1">
+                  {teacher.department === 'islamic'
+                    ? 'Islamic Education'
+                    : teacher.department === 'general'
+                    ? 'General Education'
+                    : 'Dual Stream'}
+                  {teacher.isDemo ? ' · Demo Profile' : ''}
+                </p>
                 <h3 className="font-serif text-2xl font-semibold text-[#06452C] dark:text-white">
                   {teacher.name}
                 </h3>
@@ -447,7 +459,10 @@ export const TeachersPage: React.FC = () => {
                 </p>
               </div>
             </div>
-            <div className="px-6 py-4 border-t border-[#EFE6D2] dark:border-[#D9AD43]/20">
+            <div className="px-6 py-4 border-t border-[#EFE6D2] dark:border-[#D9AD43]/20 flex items-center justify-between text-xs">
+              <span className="text-[#5A6D64] dark:text-[#C9C2B2] truncate max-w-[55%]">
+                {teacher.assignedClasses.slice(0, 3).join(', ')}
+              </span>
               <Link
                 to={`/teachers/${teacher.id}`}
                 className="text-sm font-semibold text-[#06452C] dark:text-[#D9AD43] hover:underline"
@@ -457,6 +472,12 @@ export const TeachersPage: React.FC = () => {
             </div>
           </div>
         ))}
+        {publicTeachers.length === 0 && (
+          <div className="md:col-span-3 bg-white dark:bg-[#102D23] border border-[#D9AD43]/35 rounded-xl p-10 text-center text-sm text-[#5A6D64] dark:text-[#DED7C5]">
+            No public faculty profiles are published yet. Administrators can publish faculty
+            profiles in Admin Panel → Teachers.
+          </div>
+        )}
       </div>
     </div>
   );
@@ -465,12 +486,23 @@ export const TeachersPage: React.FC = () => {
 export const TeacherProfilePage: React.FC = () => {
   const { id } = useParams();
   const { teachers } = usePlatform();
-  const teacher = teachers.find((t) => t.id === id) || teachers[0];
+  const teacher = id ? teachers.find((t) => t.id === id) : teachers[0];
 
   if (!teacher) {
     return (
-      <div className="max-w-4xl mx-auto px-4 py-16 text-center">
-        <p className="text-sm">No teacher profile found.</p>
+      <div className="max-w-4xl mx-auto px-4 py-16 text-center space-y-4">
+        <h1 className="font-serif text-3xl font-semibold text-[#06452C] dark:text-white">
+          Teacher Profile Not Found
+        </h1>
+        <p className="text-sm text-[#5A6D64] dark:text-[#DED7C5]">
+          The requested faculty profile may have been updated or removed.
+        </p>
+        <Link
+          to="/teachers"
+          className="inline-block text-sm font-semibold text-[#06452C] dark:text-[#D9AD43] hover:underline"
+        >
+          ← Back to Teachers Directory
+        </Link>
       </div>
     );
   }
@@ -479,21 +511,25 @@ export const TeacherProfilePage: React.FC = () => {
     <div>
       <PageBanner eyebrow="Teacher Profile" title={teacher.name} subtitle={teacher.designation} />
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-14 grid grid-cols-1 md:grid-cols-12 gap-8">
-        <div className="md:col-span-4 rounded-xl overflow-hidden border border-[#D9AD43]/35 bg-white">
-          {teacher.photoUrl ? (
-            <img
-              src={teacher.photoUrl}
-              alt={teacher.name}
-              referrerPolicy="no-referrer"
-              className="w-full h-auto object-cover"
+        <div className="md:col-span-4">
+          <div className="aspect-square rounded-xl overflow-hidden border border-[#D9AD43]/35 bg-[#EFE6D2] dark:bg-[#06452C]">
+            <TeacherPhoto
+              photoUrl={teacher.photoUrl}
+              name={teacher.name}
+              className="w-full h-full object-cover object-top"
+              emblemClassName="w-16 h-16"
             />
-          ) : (
-            <div className="aspect-square flex items-center justify-center bg-[#06452C]">
-              <AcademyEmblem className="w-16 h-16" variant="gold-on-emerald" />
-            </div>
-          )}
+          </div>
         </div>
         <div className="md:col-span-8 bg-white dark:bg-[#102D23] border border-[#D9AD43]/35 rounded-xl p-8 space-y-4">
+          <p className="text-xs font-semibold uppercase tracking-wider text-[#8A6518] dark:text-[#D9AD43]">
+            {teacher.department === 'islamic'
+              ? 'Islamic Education'
+              : teacher.department === 'general'
+              ? 'General Education'
+              : 'Dual Stream (General & Islamic)'}
+            {teacher.isDemo ? ' · Demo Profile' : ''}
+          </p>
           <p className="text-sm text-[#314A3F] dark:text-[#E6DFCE] leading-relaxed">{teacher.bio}</p>
           <div className="pt-4 border-t border-[#EFE6D2] dark:border-[#D9AD43]/25 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
             <div>
