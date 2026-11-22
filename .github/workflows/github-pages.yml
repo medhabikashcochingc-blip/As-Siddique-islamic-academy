@@ -28,6 +28,7 @@ jobs:
         with:
           node-version: '22'
           cache: 'npm'
+          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
         run: npm ci
@@ -51,7 +52,9 @@ jobs:
           test -f dist/sw.js
           test -f dist/offline.html
           test -f dist/pwa-192x192.png
+          test -f dist/pwa-512x512.png
           grep -q "/${{ github.event.repository.name }}/assets/" dist/index.html
+          grep -q "/${{ github.event.repository.name }}/manifest.webmanifest" dist/index.html
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
