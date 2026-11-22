@@ -22,6 +22,36 @@ service firebase.storage {
     }
 
     // Digital library & study materials
+    match /library/public/{bookId}/{fileName} {
+      allow read: if true;
+      allow create, update: if isSignedIn() &&
+        request.resource != null &&
+        (
+          (request.resource.size <= 50 * 1024 * 1024 && request.resource.contentType == 'application/pdf') ||
+          (request.resource.size <= 5 * 1024 * 1024 && (
+            request.resource.contentType == 'image/jpeg' ||
+            request.resource.contentType == 'image/png' ||
+            request.resource.contentType == 'image/webp'
+          ))
+        );
+      allow delete: if isSignedIn();
+    }
+
+    match /library/drafts/{bookId}/{fileName} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn() &&
+        request.resource != null &&
+        (
+          (request.resource.size <= 50 * 1024 * 1024 && request.resource.contentType == 'application/pdf') ||
+          (request.resource.size <= 5 * 1024 * 1024 && (
+            request.resource.contentType == 'image/jpeg' ||
+            request.resource.contentType == 'image/png' ||
+            request.resource.contentType == 'image/webp'
+          ))
+        );
+      allow delete: if isSignedIn();
+    }
+
     match /library/{resourceId}/{fileName} {
       allow read: if isSignedIn();
       allow write: if isSignedIn() && isValidUpload();

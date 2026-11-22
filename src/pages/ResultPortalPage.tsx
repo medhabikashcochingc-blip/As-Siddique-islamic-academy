@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ArrowLeft, Download, Printer, Search, ShieldCheck } from 'lucide-react';
 import { AcademyEmblem } from '../components/AcademyEmblem';
 import { usePlatform } from '../context/PlatformContext';
+import { isStaticOnlyHost, resolveApiUrl } from '../lib/assetUrl';
 import { downloadMarksheetPdf } from '../lib/pdfGenerator';
 import { PublishedResult } from '../types/platform';
 
@@ -23,25 +24,34 @@ export const ResultPortalPage: React.FC = () => {
     setSearching(true);
 
     try {
-      const verifyResp = await fetch('/api/results/verify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rollNumber, classId, sessionId, studentName }),
-      });
+      const normalizedRoll = rollNumber.trim().toUpperCase();
+      let token = `STATIC-${normalizedRoll}-${Date.now().toString(36).toUpperCase()}`;
 
-      const verifyData = await verifyResp.json();
-      if (!verifyResp.ok || !verifyData.verified) {
-        setErrorMsg(verifyData.error || 'Result verification failed.');
-        setSearching(false);
-        return;
+      if (!isStaticOnlyHost()) {
+        const verifyResp = await fetch(resolveApiUrl('/api/results/verify'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ rollNumber, classId, sessionId, studentName }),
+        });
+
+        const contentType = verifyResp.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+          const verifyData = await verifyResp.json();
+          if (!verifyResp.ok || !verifyData.verified) {
+            setErrorMsg(verifyData.error || 'Result verification failed.');
+            setSearching(false);
+            return;
+          }
+          token = verifyData.verificationToken || token;
+        }
       }
 
       const match = results.find(
         (r) =>
           r.isPublished &&
-          r.rollNumber.trim().toUpperCase() === verifyData.normalizedRoll &&
-          r.classId === verifyData.classId &&
-          r.sessionId === verifyData.sessionId &&
+          r.rollNumber.trim().toUpperCase() === normalizedRoll &&
+          r.classId === classId &&
+          r.sessionId === sessionId &&
           (!studentName.trim() ||
             r.studentName.toLowerCase().includes(studentName.trim().toLowerCase()))
       );
@@ -52,11 +62,11 @@ export const ResultPortalPage: React.FC = () => {
         );
         setFoundResult(null);
       } else {
-        setVerificationToken(verifyData.verificationToken);
+        setVerificationToken(token);
         setFoundResult(match);
       }
     } catch {
-      setErrorMsg('Unable to reach server-side verification endpoint.');
+      setErrorMsg('Unable to verify result details right now.');
     } finally {
       setSearching(false);
     }

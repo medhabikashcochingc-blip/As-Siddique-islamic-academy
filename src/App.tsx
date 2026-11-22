@@ -32,8 +32,16 @@ import {
   VisionMissionPage,
 } from './pages/PublicInfoPages';
 import { ResultPortalPage } from './pages/ResultPortalPage';
+import { DigitalLibraryBookPage } from './pages/library/DigitalLibraryBookPage';
+import { DigitalLibraryPage } from './pages/library/DigitalLibraryPage';
+import { DigitalLibraryReaderPage } from './pages/library/DigitalLibraryReaderPage';
 import { PortalDashboard } from './pages/portal/PortalDashboard';
 import { StudentPortalApp } from './pages/student/StudentPortalApp';
+
+const routerBasename =
+  import.meta.env.BASE_URL && import.meta.env.BASE_URL !== '/'
+    ? import.meta.env.BASE_URL.replace(/\/+$/, '')
+    : undefined;
 
 const ScrollToTop: React.FC = () => {
   const { pathname } = useLocation();
@@ -69,7 +77,7 @@ export default function App() {
     <ErrorBoundary>
       <AuthProvider>
         <PlatformProvider>
-          <BrowserRouter>
+          <BrowserRouter basename={routerBasename}>
             <ScrollToTop />
             <OfflineIndicator />
             <ServiceWorkerUpdater />
@@ -79,6 +87,33 @@ export default function App() {
 
               {/* Dedicated Mobile-First Student Portal */}
               <Route path="/student/*" element={<StudentPortalApp />} />
+
+              {/* As-Siddique Digital Islamic Library */}
+              <Route
+                path="/library"
+                element={
+                  <PublicLayout>
+                    <DigitalLibraryPage />
+                  </PublicLayout>
+                }
+              />
+              <Route
+                path="/library/search"
+                element={
+                  <PublicLayout>
+                    <DigitalLibraryPage initialSearchFocus />
+                  </PublicLayout>
+                }
+              />
+              <Route
+                path="/library/book/:id"
+                element={
+                  <PublicLayout>
+                    <DigitalLibraryBookPage />
+                  </PublicLayout>
+                }
+              />
+              <Route path="/library/read/:id" element={<DigitalLibraryReaderPage />} />
 
               {/* Public Website & Standalone Portals */}
               <Route

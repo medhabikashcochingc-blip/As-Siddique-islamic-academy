@@ -139,7 +139,7 @@
         <button type="button" class="btn-primary" onclick="window.location.reload()">
           Retry Connection
         </button>
-        <a href="/" class="btn-secondary">Return Home</a>
+        <a href="./" class="btn-secondary">Return Home</a>
       </div>
       <div class="status" id="conn-status">Waiting for internet connectivity...</div>
     </main>
@@ -147,7 +147,7 @@
       window.addEventListener('online', function () {
         var el = document.getElementById('conn-status');
         if (el) el.textContent = 'Connection restored! Reloading...';
-        window.location.href = '/';
+        window.location.href = './';
       });
     </script>
   </body>

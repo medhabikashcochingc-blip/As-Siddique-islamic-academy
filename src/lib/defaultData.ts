@@ -12,6 +12,8 @@ import {
   GalleryItem,
   HomeworkItem,
   InstitutionSettings,
+  LibraryBook,
+  LibraryCategory,
   LibraryResource,
   LiveClassSession,
   LmsCourse,
@@ -28,10 +30,12 @@ import {
   TeacherRecord,
   TimetableSlot,
 } from '../types/platform';
+import { withBasePath } from './assetUrl';
 
-export const HERO_MOSQUE_IMAGE = '/src/assets/images/hero_mosque_academy_1795074356108.jpg';
-export const PRINCIPAL_PORTRAIT_IMAGE = '/src/assets/images/principal_scholar_portrait_1795074355746.jpg';
-export const ONLINE_LEARNING_IMAGE = '/src/assets/images/online_learning_session_1795074356262.jpg';
+export const HERO_MOSQUE_IMAGE = withBasePath('/src/assets/images/hero_mosque_academy_1795074356108.jpg');
+export const PRINCIPAL_PORTRAIT_IMAGE = withBasePath('/src/assets/images/principal_scholar_portrait_1795074355746.jpg');
+export const ONLINE_LEARNING_IMAGE = withBasePath('/src/assets/images/online_learning_session_1795074356262.jpg');
+export const LIBRARY_HERO_IMAGE = withBasePath('/src/assets/images/library_reading_hall_1795360522131.jpg');
 
 export const DEFAULT_INSTITUTION_SETTINGS: InstitutionSettings = {
   id: 'main',
@@ -125,7 +129,7 @@ export const DEMO_TEACHERS: TeacherRecord[] = [
     department: 'islamic',
     assignedClasses: ['Class 4', 'Class 5', 'Class 8', 'Class 10'],
     assignedSubjects: ['Quran & Nazirah', 'Tajweed, Fiqh & Aqeedah', 'Arabic & Seerah'],
-    photoUrl: '/src/assets/images/teacher_quran_arabic_1795074356458.jpg',
+    photoUrl: withBasePath('/src/assets/images/teacher_quran_arabic_1795074356458.jpg'),
     isPublic: true,
     bio: 'Clearly labelled demo faculty profile. Administrators can replace or add real verified teacher names, qualifications, and photographs in Admin Panel → Teachers.',
     status: 'active',
@@ -139,7 +143,7 @@ export const DEMO_TEACHERS: TeacherRecord[] = [
     department: 'general',
     assignedClasses: ['Class 8', 'Class 9', 'Class 10', 'Class 12'],
     assignedSubjects: ['Physical & Life Sciences', 'Chemistry'],
-    photoUrl: '/src/assets/images/teacher_science_female_1795074356658.jpg',
+    photoUrl: withBasePath('/src/assets/images/teacher_science_female_1795074356658.jpg'),
     isPublic: true,
     bio: 'Clearly labelled demo faculty profile for General School Education Sciences. Update with verified staff records in the Admin Panel.',
     status: 'active',
@@ -153,7 +157,7 @@ export const DEMO_TEACHERS: TeacherRecord[] = [
     department: 'general',
     assignedClasses: ['Class 6', 'Class 8', 'Class 10', 'Class 12'],
     assignedSubjects: ['Mathematics', 'English'],
-    photoUrl: '/src/assets/images/teacher_math_male_1795074356342.jpg',
+    photoUrl: withBasePath('/src/assets/images/teacher_math_male_1795074356342.jpg'),
     isPublic: true,
     bio: 'Clearly labelled demo faculty profile for Mathematics across Offline and Online cohorts.',
     status: 'active',
@@ -1065,14 +1069,14 @@ export const DEMO_LESSONS: LmsLesson[] = [
     title: 'Lesson 01: Articulation of Throat & Tongue Letters (Recorded)',
     order: 1,
     videoType: 'url',
-    videoUrl: '/media/tajweed-lesson-01.mp4',
+    videoUrl: withBasePath('/media/tajweed-lesson-01.mp4'),
     durationSeconds: 10,
     lectures: [
       {
         id: 'lec-1-a',
         title: 'Part 1: Overview of the 5 Makharij Zones',
         videoType: 'url',
-        videoUrl: '/media/tajweed-lesson-01.mp4',
+        videoUrl: withBasePath('/media/tajweed-lesson-01.mp4'),
         durationSeconds: 10,
         transcript:
           '00:00 — Assalamu Alaikum students. Welcome to Lesson 01 of Quran Learning, Makharij & Applied Tajweed.\n00:03 — Every Arabic letter originates from one of five main articulation zones: Al-Jawf (oral cavity), Al-Halq (throat), Al-Lisan (tongue), Ash-Shafatan (lips), and Al-Khayshum (nasal passage).\n00:07 — Practice throat letters Hamzah, Ha, Ayn, Ha, Ghayn, and Kha clearly before attempting the 5-question assessment.',
@@ -1095,14 +1099,14 @@ export const DEMO_LESSONS: LmsLesson[] = [
     title: 'Lesson 02: Natural Madd, Ghunnah & Iqlab Rules (Sequential)',
     order: 2,
     videoType: 'url',
-    videoUrl: '/media/tajweed-lesson-01.mp4',
+    videoUrl: withBasePath('/media/tajweed-lesson-01.mp4'),
     durationSeconds: 10,
     lectures: [
       {
         id: 'lec-1-2-a',
         title: 'Madd Tabee‘i, Ghunnah (2 Harakat) & Iqlab',
         videoType: 'url',
-        videoUrl: '/media/tajweed-lesson-01.mp4',
+        videoUrl: withBasePath('/media/tajweed-lesson-01.mp4'),
         durationSeconds: 10,
         transcript:
           '00:00 — In Lesson 02 we study Madd Asli (2 counts) and Nun Sakinah rules.\n00:05 — Hold Ghunnah steadily for 2 Harakat and apply Iqlab before letter Ba (ب).',
@@ -1125,14 +1129,14 @@ export const DEMO_LESSONS: LmsLesson[] = [
     title: 'Lesson 01: Standard Form & Factorization (Recorded)',
     order: 1,
     videoType: 'url',
-    videoUrl: '/media/math-lesson-01.mp4',
+    videoUrl: withBasePath('/media/math-lesson-01.mp4'),
     durationSeconds: 10,
     lectures: [
       {
         id: 'lec-2-a',
         title: 'Lecture 1.1: Standard Form ax² + bx + c = 0',
         videoType: 'url',
-        videoUrl: '/media/math-lesson-01.mp4',
+        videoUrl: withBasePath('/media/math-lesson-01.mp4'),
         durationSeconds: 10,
         transcript:
           '00:00 — Welcome to Class 10 Mathematics (West Bengal Board Track).\n00:04 — Standard quadratic form is ax² + bx + c = 0 with a ≠ 0.\n00:07 — Equal real roots occur when discriminant b² - 4ac = 0. Watch completely to unlock Lesson 01 MCQ Quiz.',
@@ -1155,14 +1159,14 @@ export const DEMO_LESSONS: LmsLesson[] = [
     title: 'Lesson 02: Sridharacharya Formula & Discriminant Analysis',
     order: 2,
     videoType: 'url',
-    videoUrl: '/media/math-lesson-01.mp4',
+    videoUrl: withBasePath('/media/math-lesson-01.mp4'),
     durationSeconds: 10,
     lectures: [
       {
         id: 'lec-2-2-a',
         title: 'Lecture 1.2: Deriving & Applying Sridharacharya Formula',
         videoType: 'url',
-        videoUrl: '/media/math-lesson-01.mp4',
+        videoUrl: withBasePath('/media/math-lesson-01.mp4'),
         durationSeconds: 10,
         transcript:
           '00:00 — Welcome to Lesson 02: Sridharacharya Formula.\n00:04 — Roots are x = (-b ± √(b² - 4ac)) / 2a.\n00:08 — Check Δ > 0, Δ = 0, or Δ < 0 before solving.',
@@ -1183,14 +1187,14 @@ export const DEMO_LESSONS: LmsLesson[] = [
     title: 'Lesson 01: Nominal Sentences (Al-Jumlah Al-Ismiyyah)',
     order: 1,
     videoType: 'url',
-    videoUrl: '/media/tajweed-lesson-01.mp4',
+    videoUrl: withBasePath('/media/tajweed-lesson-01.mp4'),
     durationSeconds: 10,
     lectures: [
       {
         id: 'lec-3-a',
         title: 'Part 1: Mubtada & Khabar Agreement Rules',
         videoType: 'url',
-        videoUrl: '/media/tajweed-lesson-01.mp4',
+        videoUrl: withBasePath('/media/tajweed-lesson-01.mp4'),
         durationSeconds: 10,
         transcript:
           '00:00 — Al-Jumlah Al-Ismiyyah starts with a Noun (Ism).\n00:04 — The two pillars are Mubtada (Subject, typically definite) and Khabar (Predicate).\n00:08 — Complete this video to unlock your 5-question Arabic Nahw MCQ check.',
@@ -1211,14 +1215,14 @@ export const DEMO_LESSONS: LmsLesson[] = [
     title: 'Lesson 02: Huruf Al-Jarr, Pronouns & Daily Study Duas',
     order: 2,
     videoType: 'url',
-    videoUrl: '/media/tajweed-lesson-01.mp4',
+    videoUrl: withBasePath('/media/tajweed-lesson-01.mp4'),
     durationSeconds: 10,
     lectures: [
       {
         id: 'lec-3-2-a',
         title: 'Part 1: Prepositions & Prophetic Knowledge Duas',
         videoType: 'url',
-        videoUrl: '/media/tajweed-lesson-01.mp4',
+        videoUrl: withBasePath('/media/tajweed-lesson-01.mp4'),
         durationSeconds: 10,
         transcript:
           '00:00 — Prepositions (fi, ila, min, ala) place the following noun into Majrur (Kasrah).\n00:05 — Practice "Rabbi zidni ‘ilma" and detached pronouns (Ana, Nahnu, Anta, Huwa).',
@@ -1239,14 +1243,14 @@ export const DEMO_LESSONS: LmsLesson[] = [
     title: 'Lesson 01: Hadith of Intention (Innamal A‘malu bin-Niyyat)',
     order: 1,
     videoType: 'url',
-    videoUrl: '/media/tajweed-lesson-01.mp4',
+    videoUrl: withBasePath('/media/tajweed-lesson-01.mp4'),
     durationSeconds: 10,
     lectures: [
       {
         id: 'lec-4-a',
         title: 'Part 1: Sanad, Matn & Sincerity of Niyyah',
         videoType: 'url',
-        videoUrl: '/media/tajweed-lesson-01.mp4',
+        videoUrl: withBasePath('/media/tajweed-lesson-01.mp4'),
         durationSeconds: 10,
         transcript:
           '00:00 — Narrated by Umar ibn Al-Khattab (RA): "Actions are judged by intentions."\n00:05 — Learn how Sanad (narrator chain) and Matn (text) verify authentic Hadith.',
@@ -1267,14 +1271,14 @@ export const DEMO_LESSONS: LmsLesson[] = [
     title: 'Lesson 02: Hijrah to Madinah & Prophetic Brotherhood',
     order: 2,
     videoType: 'url',
-    videoUrl: '/media/tajweed-lesson-01.mp4',
+    videoUrl: withBasePath('/media/tajweed-lesson-01.mp4'),
     durationSeconds: 10,
     lectures: [
       {
         id: 'lec-4-2-a',
         title: 'Part 1: As-Sadiq Al-Amin & Building Madinah',
         videoType: 'url',
-        videoUrl: '/media/tajweed-lesson-01.mp4',
+        videoUrl: withBasePath('/media/tajweed-lesson-01.mp4'),
         durationSeconds: 10,
         transcript:
           '00:00 — Explore how the Hijrah in 622 CE inaugurated the Hijri era.\n00:05 — Study Al-Mu’akhah (brotherhood between Muhajirun and Ansar) and Masjid-centered education.',
@@ -1295,14 +1299,14 @@ export const DEMO_LESSONS: LmsLesson[] = [
     title: 'Lesson 01: Essentials of Wudu & Articles of Faith',
     order: 1,
     videoType: 'url',
-    videoUrl: '/media/tajweed-lesson-01.mp4',
+    videoUrl: withBasePath('/media/tajweed-lesson-01.mp4'),
     durationSeconds: 10,
     lectures: [
       {
         id: 'lec-5-a',
         title: 'Part 1: The 4 Fard Acts of Wudu & 6 Pillars of Iman',
         videoType: 'url',
-        videoUrl: '/media/tajweed-lesson-01.mp4',
+        videoUrl: withBasePath('/media/tajweed-lesson-01.mp4'),
         durationSeconds: 10,
         transcript:
           '00:00 — Purity (Taharah) is half of faith.\n00:05 — Review the 4 Fard acts of Wudu from Surah Al-Ma’idah 5:6 without wasting water.',
@@ -1323,14 +1327,14 @@ export const DEMO_LESSONS: LmsLesson[] = [
     title: 'Lesson 02: Five Daily Prayers, Khushu‘ & Jama‘ah',
     order: 2,
     videoType: 'url',
-    videoUrl: '/media/tajweed-lesson-01.mp4',
+    videoUrl: withBasePath('/media/tajweed-lesson-01.mp4'),
     durationSeconds: 10,
     lectures: [
       {
         id: 'lec-5-2-a',
         title: 'Part 1: Establishing Salah with Presence of Heart',
         videoType: 'url',
-        videoUrl: '/media/tajweed-lesson-01.mp4',
+        videoUrl: withBasePath('/media/tajweed-lesson-01.mp4'),
         durationSeconds: 10,
         transcript:
           '00:00 — Salah is the second pillar of Islam with 5 daily prayers.\n00:05 — Congregational prayer carries 27 degrees greater reward and nurtures Khushu‘.',
@@ -1351,14 +1355,14 @@ export const DEMO_LESSONS: LmsLesson[] = [
     title: 'Lesson 01: Etiquette of Seeking Knowledge & Greeting',
     order: 1,
     videoType: 'url',
-    videoUrl: '/media/tajweed-lesson-01.mp4',
+    videoUrl: withBasePath('/media/tajweed-lesson-01.mp4'),
     durationSeconds: 10,
     lectures: [
       {
         id: 'lec-6-a',
         title: 'Part 1: Adab of the Learner & Spreading Salam',
         videoType: 'url',
-        videoUrl: '/media/tajweed-lesson-01.mp4',
+        videoUrl: withBasePath('/media/tajweed-lesson-01.mp4'),
         durationSeconds: 10,
         transcript:
           '00:00 — As-Siddique Academy motto: Learn · Practice · Preach.\n00:05 — Greet teachers and peers with Assalamu Alaikum and respect books of knowledge.',
@@ -1379,14 +1383,14 @@ export const DEMO_LESSONS: LmsLesson[] = [
     title: 'Lesson 02: Honoring Parents, Truthfulness & Kind Speech',
     order: 2,
     videoType: 'url',
-    videoUrl: '/media/tajweed-lesson-01.mp4',
+    videoUrl: withBasePath('/media/tajweed-lesson-01.mp4'),
     durationSeconds: 10,
     lectures: [
       {
         id: 'lec-6-2-a',
         title: 'Part 1: Birr al-Walidayn & Prophetic Character',
         videoType: 'url',
-        videoUrl: '/media/tajweed-lesson-01.mp4',
+        videoUrl: withBasePath('/media/tajweed-lesson-01.mp4'),
         durationSeconds: 10,
         transcript:
           '00:00 — Memorize "Rabbir hamhuma kama rabbayani saghira" for parents.\n00:05 — Uphold Sidq (truthfulness) and avoid backbiting both offline and online.',
@@ -1546,6 +1550,156 @@ export const DEMO_LIBRARY: LibraryResource[] = [
     subjectName: 'Arabic & Islamic Manners',
     fileUrl: '#library-sample',
     allowDownload: true,
+  },
+];
+
+export const DEFAULT_LIBRARY_CATEGORIES: LibraryCategory[] = [
+  {
+    id: 'cat-quran-tafsir',
+    name: 'Quran & Tafsir',
+    slug: 'quran-tafsir',
+    description: 'Mushaf editions, Tajweed sciences, Makharij guides, and authentic Tafsir references.',
+    subcategories: ['Tajweed & Makharij', 'Tafsir & Translation', 'Hifz & Nazirah'],
+    order: 1,
+    isActive: true,
+  },
+  {
+    id: 'cat-hadith-sunnah',
+    name: 'Hadith & Sunnah',
+    slug: 'hadith-sunnah',
+    description: 'Authenticated Prophetic traditions, Nawawi 40, Riyad us-Saliheen, and Hadith methodology.',
+    subcategories: ['40 Hadith & Etiquette', 'Hadith Sciences', 'Daily Adhkar & Duas'],
+    order: 2,
+    isActive: true,
+  },
+  {
+    id: 'cat-seerah-history',
+    name: 'Seerah & Islamic History',
+    slug: 'seerah-history',
+    description: 'Prophetic biography, Rightly Guided Caliphs, and Islamic educational heritage.',
+    subcategories: ['Prophetic Biography (Seerah)', 'Companions (Sahabah)', 'Islamic Civilization'],
+    order: 3,
+    isActive: true,
+  },
+  {
+    id: 'cat-aqeedah-fiqh',
+    name: 'Aqeedah & Fiqh',
+    slug: 'aqeedah-fiqh',
+    description: 'Foundations of Islamic belief, Taharah, Salah, Fasting, Zakah, and moral Akhlaq.',
+    subcategories: ['Islamic Creed (Aqeedah)', 'Worship & Salah (Fiqh)', 'Character & Tarbiyah'],
+    order: 4,
+    isActive: true,
+  },
+  {
+    id: 'cat-arabic-grammar',
+    name: 'Arabic Language & Grammar',
+    slug: 'arabic-grammar',
+    description: 'Classical Nahw (syntax), Sarf (morphology), vocabulary builders, and reading primers.',
+    subcategories: ['Nahw (Syntax)', 'Sarf (Morphology)', 'Arabic Reading & Vocabulary'],
+    order: 5,
+    isActive: true,
+  },
+  {
+    id: 'cat-bengali-literature',
+    name: 'Bengali Islamic Literature',
+    slug: 'bengali-literature',
+    description: 'বাংলা ইসলামিক সাহিত্য, সীরাত, তাজবিদ ও নৈতিক শিক্ষা বিষয়ক প্রবন্ধ ও বই।',
+    subcategories: ['বাংলা তাজবিদ ও কুরআন', 'বাংলা সীরাত ও ইতিহাস', 'ছোটদের ইসলামিক গল্প'],
+    order: 6,
+    isActive: true,
+  },
+  {
+    id: 'cat-school-notes',
+    name: 'School Textbooks & Notes',
+    slug: 'school-notes',
+    description: 'West Bengal State Board Class 1–12 textbooks, study guides, and solved notes.',
+    subcategories: ['Class 1–5 Primary', 'Class 6–10 Secondary', 'Class 11–12 Higher Secondary'],
+    order: 7,
+    isActive: true,
+  },
+];
+
+export const DEMO_LIBRARY_BOOKS: LibraryBook[] = [
+  {
+    id: 'lib-book-tajweed',
+    title: 'Tajweed & Makharij Practical Primer (তাজবিদ ও মাখরাজ সহায়িকা)',
+    author: 'Islamic Studies Wing · As-Siddique Islamic Academy',
+    publisher: 'As-Siddique Digital Press',
+    language: 'Bengali',
+    categoryId: 'cat-quran-tafsir',
+    categoryName: 'Quran & Tafsir',
+    subcategory: 'Tajweed & Makharij',
+    description:
+      'Step-by-step guide covering the five main Arabic articulation zones (Al-Jawf, Al-Halq, Al-Lisan, Ash-Shafatan, Al-Khayshum), Madd Tabee‘i counts, Ghunnah, and Nun Sakinah rules for Class 1–12 learners.',
+    tags: ['Tajweed', 'Makharij', 'Quran', 'Ghunnah', 'বাংলা তাজবিদ'],
+    publicationYear: '2026',
+    permission: 'both',
+    status: 'published',
+    featured: true,
+    pdfUrl: withBasePath('/media/library/tajweed-makharij-guide.pdf'),
+    coverUrl: withBasePath('/src/assets/images/book_cover_tajweed_1795360523334.jpg'),
+    fileSizeBytes: 5120,
+    pageCount: 2,
+    viewsCount: 248,
+    downloadsCount: 114,
+    searchText:
+      'Tajweed Makharij Practical Primer Quran recitation Al-Jawf Al-Halq Al-Lisan Ash-Shafatan Al-Khayshum Madd Tabeei Ghunnah Iqlab Idgham Ikhfa বাংলা তাজবিদ কুরআন শিক্ষা আস-সিদ্দিক',
+    ocrRequired: false,
+    isSampleBook: true,
+  },
+  {
+    id: 'lib-book-seerah',
+    title: 'Prophetic Seerah & Madinan Brotherhood Chronology',
+    author: 'Mawlana Zayd Al-Qasmi (Curriculum Edition)',
+    publisher: 'As-Siddique Digital Press',
+    language: 'English',
+    categoryId: 'cat-seerah-history',
+    categoryName: 'Seerah & Islamic History',
+    subcategory: 'Prophetic Biography (Seerah)',
+    description:
+      'Concise study handbook tracing the Makkan period, As-Sadiq Al-Amin character ethics, the Hijrah of 622 CE, Masjid Quba, and the Madinan brotherhood (Al-Mu’akhah).',
+    tags: ['Seerah', 'Hijrah', 'Madinah', 'History', 'Akhlaq'],
+    publicationYear: '2026',
+    permission: 'read_only',
+    status: 'published',
+    featured: true,
+    pdfUrl: withBasePath('/media/library/seerah-chronology-primer.pdf'),
+    coverUrl: withBasePath('/src/assets/images/book_cover_seerah_1795360523075.jpg'),
+    fileSizeBytes: 5120,
+    pageCount: 2,
+    viewsCount: 196,
+    downloadsCount: 0,
+    searchText:
+      'Prophetic Seerah Chronology Makkah Madinah Hijrah 622 CE As-Sadiq Al-Amin Masjid Quba Al-Muakhah Muhajirun Ansar Prophet Muhammad Islamic History',
+    ocrRequired: false,
+    isSampleBook: true,
+  },
+  {
+    id: 'lib-book-arabic',
+    title: 'Arabic Nahw & Nominal Sentences Workbook (القواعد العربية)',
+    author: 'Ustadh Tariq Al-Mansoor',
+    publisher: 'As-Siddique Digital Press',
+    language: 'Arabic',
+    categoryId: 'cat-arabic-grammar',
+    categoryName: 'Arabic Language & Grammar',
+    subcategory: 'Nahw (Syntax)',
+    description:
+      'Structured Arabic grammar primer introducing Al-Jumlah Al-Ismiyyah (Mubtada and Khabar), Huruf Al-Jarr prepositions, and classical reading drills for Middle and Secondary students.',
+    tags: ['Arabic', 'Nahw', 'Grammar', 'Mubtada', 'Khabar'],
+    publicationYear: '2026',
+    permission: 'download',
+    status: 'published',
+    featured: true,
+    pdfUrl: withBasePath('/media/library/arabic-nahw-foundations.pdf'),
+    coverUrl: withBasePath('/src/assets/images/book_cover_arabic_1795360523273.jpg'),
+    fileSizeBytes: 5120,
+    pageCount: 2,
+    viewsCount: 162,
+    downloadsCount: 89,
+    searchText:
+      'Arabic Nahw Foundations Al-Jumlah Al-Ismiyyah Mubtada Khabar Marfu Majrur Huruf Al-Jarr Rabbi zidni ilma القواعد العربية النحو الصرف',
+    ocrRequired: false,
+    isSampleBook: true,
   },
 ];
 

@@ -504,6 +504,62 @@ export interface LibraryResource {
   allowDownload: boolean;
 }
 
+export type LibraryLanguage = 'Bengali' | 'Arabic' | 'English' | 'Urdu' | 'Other';
+export type LibraryBookPermission = 'read_only' | 'download' | 'both';
+export type LibraryBookStatus = 'published' | 'draft';
+
+export interface LibraryCategory {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  subcategories: string[];
+  order: number;
+  isActive: boolean;
+}
+
+export interface LibraryBook {
+  id: string;
+  title: string;
+  author: string;
+  publisher?: string;
+  language: LibraryLanguage;
+  categoryId: string;
+  categoryName: string;
+  subcategory?: string;
+  description: string;
+  tags: string[];
+  publicationYear?: string;
+  permission: LibraryBookPermission;
+  status: LibraryBookStatus;
+  featured: boolean;
+  pdfUrl: string;
+  pdfStoragePath?: string;
+  coverUrl?: string;
+  coverStoragePath?: string;
+  fileSizeBytes?: number;
+  pageCount?: number;
+  viewsCount: number;
+  downloadsCount: number;
+  searchText?: string;
+  ocrRequired?: boolean;
+  uploadedByUid?: string;
+  uploadedByName?: string;
+  isSampleBook?: boolean;
+  createdAt?: unknown;
+  updatedAt?: unknown;
+}
+
+export interface LibraryReadingProgress {
+  id: string;
+  userUid: string;
+  bookId: string;
+  lastPage: number;
+  totalPages: number;
+  zoom?: number;
+  updatedAt?: unknown;
+}
+
 export interface NoticeRecord {
   id: string;
   refCode: string;

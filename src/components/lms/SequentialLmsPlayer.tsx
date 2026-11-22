@@ -31,6 +31,7 @@ import { AcademyEmblem } from '../AcademyEmblem';
 import { TeacherPhoto } from '../TeacherPhoto';
 import { useAuth } from '../../context/AuthContext';
 import { usePlatform } from '../../context/PlatformContext';
+import { withBasePath } from '../../lib/assetUrl';
 import { extractYouTubeId } from '../../lib/lmsVideoUpload';
 import { downloadCourseCompletionCertificatePdf } from '../../lib/pdfGenerator';
 import {
@@ -1094,7 +1095,7 @@ export const SequentialLmsPlayer: React.FC<SequentialLmsPlayerProps> = ({
                 <video
                   ref={htmlVideoRef}
                   key={`${activeLesson.id}-${activeLecture.id}-${activeLecture.videoUrl}`}
-                  src={activeLecture.videoUrl}
+                  src={withBasePath(activeLecture.videoUrl)}
                   controls
                   playsInline
                   controlsList="nodownload"

@@ -123,7 +123,7 @@ export const PublicLayout: React.FC<{ children: React.ReactNode }> = ({ children
 
           <nav
             aria-label="Main Navigation"
-            className="hidden lg:flex items-center gap-5 text-sm font-medium text-[#102D23] dark:text-[#E6DFCE]"
+            className="hidden lg:flex items-center gap-4 xl:gap-5 text-sm font-medium text-[#102D23] dark:text-[#E6DFCE]"
           >
             <NavLink
               to="/"
@@ -155,6 +155,16 @@ export const PublicLayout: React.FC<{ children: React.ReactNode }> = ({ children
               }
             >
               {t.nav.courses}
+            </NavLink>
+            <NavLink
+              to="/library"
+              className={({ isActive }) =>
+                `whitespace-nowrap shrink-0 py-1 hover:text-[#06452C] dark:hover:text-[#D9AD43] ${
+                  isActive ? 'text-[#06452C] dark:text-[#D9AD43] font-semibold' : ''
+                }`
+              }
+            >
+              {t.nav.library}
             </NavLink>
             <NavLink
               to="/teachers"
@@ -243,6 +253,7 @@ export const PublicLayout: React.FC<{ children: React.ReactNode }> = ({ children
               { label: t.nav.home, to: '/' },
               { label: t.nav.programmes, to: '/programmes' },
               { label: t.nav.courses, to: '/courses' },
+              { label: 'As-Siddique Digital Library', to: '/library' },
               { label: t.nav.teachers, to: '/teachers' },
               { label: 'Online Result Portal', to: '/results' },
               { label: t.nav.admission, to: '/admission' },
@@ -305,6 +316,7 @@ export const PublicLayout: React.FC<{ children: React.ReactNode }> = ({ children
                 <li><Link to="/general-education" className="hover:text-white">General Education ({settings.boardName})</Link></li>
                 <li><Link to="/islamic-education" className="hover:text-white">Islamic Education</Link></li>
                 <li><Link to="/courses" className="hover:text-white">Online Courses &amp; LMS</Link></li>
+                <li><Link to="/library" className="hover:text-white">Digital Islamic Library</Link></li>
                 <li><Link to="/results" className="hover:text-white">Online Result Portal</Link></li>
                 <li><Link to="/admission" className="hover:text-white">Admission Portal</Link></li>
               </ul>

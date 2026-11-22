@@ -18,6 +18,7 @@ import {
 import {
   DEFAULT_CLASSES,
   DEFAULT_INSTITUTION_SETTINGS,
+  DEFAULT_LIBRARY_CATEGORIES,
   DEFAULT_SECTIONS,
   DEFAULT_SESSIONS,
   DEFAULT_SUBJECTS,
@@ -35,6 +36,7 @@ import {
   DEMO_LESSON_QUESTION_BANKS,
   DEMO_LESSONS,
   DEMO_LIBRARY,
+  DEMO_LIBRARY_BOOKS,
   DEMO_LIVE_CLASSES,
   DEMO_LMS_QA,
   DEMO_NOTICES,
@@ -45,6 +47,7 @@ import {
   DEMO_TEACHERS,
   DEMO_TIMETABLE,
 } from '../lib/defaultData';
+import { isStaticOnlyHost, resolveApiUrl } from '../lib/assetUrl';
 import {
   AcademicClass,
   AcademicSession,
@@ -61,6 +64,9 @@ import {
   HomeworkItem,
   InstitutionSettings,
   LanguageCode,
+  LibraryBook,
+  LibraryCategory,
+  LibraryReadingProgress,
   LibraryResource,
   LiveClassSession,
   LmsCourse,
@@ -165,6 +171,9 @@ interface PlatformContextValue {
   lmsQa: LmsQaEntry[];
   liveClasses: LiveClassSession[];
   library: LibraryResource[];
+  libraryCategories: LibraryCategory[];
+  libraryBooks: LibraryBook[];
+  libraryReadingProgress: LibraryReadingProgress[];
   notices: NoticeRecord[];
   events: EventRecord[];
   gallery: GalleryItem[];
@@ -225,6 +234,9 @@ export const PlatformProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [lmsQa, setLmsQa] = useState<LmsQaEntry[]>(DEMO_LMS_QA);
   const [liveClasses, setLiveClasses] = useState<LiveClassSession[]>(DEMO_LIVE_CLASSES);
   const [library, setLibrary] = useState<LibraryResource[]>(DEMO_LIBRARY);
+  const [libraryCategories, setLibraryCategories] = useState<LibraryCategory[]>(DEFAULT_LIBRARY_CATEGORIES);
+  const [libraryBooks, setLibraryBooks] = useState<LibraryBook[]>(DEMO_LIBRARY_BOOKS);
+  const [libraryReadingProgress, setLibraryReadingProgress] = useState<LibraryReadingProgress[]>([]);
   const [notices, setNotices] = useState<NoticeRecord[]>(DEMO_NOTICES);
   const [events, setEvents] = useState<EventRecord[]>(DEMO_EVENTS);
   const [gallery, setGallery] = useState<GalleryItem[]>(DEMO_GALLERY);
@@ -249,9 +261,13 @@ export const PlatformProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const setLanguage = (lang: LanguageCode) => setLanguageState(lang);
 
   const refreshIntegrations = async (): Promise<IntegrationStatus> => {
+    if (isStaticOnlyHost()) {
+      return DEFAULT_INTEGRATIONS_STATUS;
+    }
     try {
-      const res = await fetch('/api/integrations/status');
-      if (res.ok) {
+      const res = await fetch(resolveApiUrl('/api/integrations/status'));
+      const contentType = res.headers.get('content-type') || '';
+      if (res.ok && contentType.includes('application/json')) {
         const data = (await res.json()) as IntegrationStatus;
         setIntegrations(data);
         return data;
@@ -316,6 +332,28 @@ export const PlatformProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     bindPublicCol<GalleryItem>('gallery', setGallery, DEMO_GALLERY);
     bindPublicCol<LmsCourse>('courses', setCourses, DEMO_COURSES);
     bindPublicCol<PublishedResult>('results', setResults, DEMO_RESULTS);
+    bindPublicCol<LibraryCategory>('libraryCategories', setLibraryCategories, DEFAULT_LIBRARY_CATEGORIES);
+
+    // Public visitors read published Digital Library books (drafts remain restricted to Admin/Librarian)
+    const qPublishedBooks = query(
+      collection(db, 'libraryBooks'),
+      where('status', '==', 'published')
+    );
+    unsubs.push(
+      onSnapshot(
+        qPublishedBooks,
+        (snap) => {
+          if (!snap.empty) {
+            setLibraryBooks(snap.docs.map((d) => ({ ...(d.data() as LibraryBook), id: d.id })));
+          } else {
+            setLibraryBooks(DEMO_LIBRARY_BOOKS);
+          }
+        },
+        () => {
+          setLibraryBooks(DEMO_LIBRARY_BOOKS);
+        }
+      )
+    );
 
     return () => unsubs.forEach((u) => u());
   }, []);
@@ -538,6 +576,28 @@ export const PlatformProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       bindAuthCol<UserAccount>('users', setUsers, []);
     }
 
+    if (['super_admin', 'admin', 'principal', 'librarian'].includes(effectiveRole)) {
+      bindAuthCol<LibraryBook>('libraryBooks', setLibraryBooks, DEMO_LIBRARY_BOOKS);
+    }
+
+    const qMyLibraryProgress = query(
+      collection(db, 'libraryReadingProgress'),
+      where('userUid', '==', userAccount.uid)
+    );
+    unsubs.push(
+      onSnapshot(
+        qMyLibraryProgress,
+        (snap) => {
+          setLibraryReadingProgress(
+            snap.docs.map((d) => ({ ...(d.data() as LibraryReadingProgress), id: d.id }))
+          );
+        },
+        () => {
+          // Respect permission boundaries silently
+        }
+      )
+    );
+
     bindAuthCol<NotificationItem>('notifications', setNotifications, []);
 
     return () => unsubs.forEach((u) => u());
@@ -636,6 +696,8 @@ export const PlatformProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       DEMO_LMS_QA.forEach((qa) => batch.set(doc(db, 'lmsQa', qa.id), qa));
       DEMO_LIVE_CLASSES.forEach((lv) => batch.set(doc(db, 'liveClasses', lv.id), lv));
       DEMO_LIBRARY.forEach((lb) => batch.set(doc(db, 'library', lb.id), lb));
+      DEFAULT_LIBRARY_CATEGORIES.forEach((cat) => batch.set(doc(db, 'libraryCategories', cat.id), cat));
+      DEMO_LIBRARY_BOOKS.forEach((book) => batch.set(doc(db, 'libraryBooks', book.id), book));
       DEMO_TIMETABLE.forEach((tt) => batch.set(doc(db, 'timetables', tt.id), tt));
       DEMO_HOMEWORK.forEach((hw) => batch.set(doc(db, 'homework', hw.id), hw));
       DEMO_ASSIGNMENTS.forEach((asg) => batch.set(doc(db, 'assignments', asg.id), asg));
@@ -689,6 +751,9 @@ export const PlatformProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         lmsQa,
         liveClasses,
         library,
+        libraryCategories,
+        libraryBooks,
+        libraryReadingProgress,
         notices,
         events,
         gallery,

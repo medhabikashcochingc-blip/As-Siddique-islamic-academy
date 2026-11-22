@@ -573,6 +573,69 @@
       },
       "required": ["title", "category", "fileUrl", "allowDownload"]
     },
+    "LibraryCategory": {
+      "title": "LibraryCategory",
+      "description": "Digital Islamic Library category and subcategories.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 120 },
+        "slug": { "type": "string", "maxLength": 120 },
+        "description": { "type": "string", "maxLength": 400 },
+        "subcategories": { "type": "array" },
+        "order": { "type": "number" },
+        "isActive": { "type": "boolean" }
+      },
+      "required": ["id", "name", "slug", "subcategories", "order", "isActive"]
+    },
+    "LibraryBook": {
+      "title": "LibraryBook",
+      "description": "Published or draft Digital Islamic Library PDF book metadata and searchable full-text index.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 240 },
+        "author": { "type": "string", "maxLength": 160 },
+        "publisher": { "type": "string", "maxLength": 160 },
+        "language": { "type": "string", "enum": ["Bengali", "Arabic", "English", "Urdu", "Other"] },
+        "categoryId": { "type": "string", "maxLength": 128 },
+        "categoryName": { "type": "string", "maxLength": 120 },
+        "subcategory": { "type": "string", "maxLength": 120 },
+        "description": { "type": "string", "maxLength": 4000 },
+        "tags": { "type": "array" },
+        "publicationYear": { "type": "string", "maxLength": 20 },
+        "permission": { "type": "string", "enum": ["read_only", "download", "both"] },
+        "status": { "type": "string", "enum": ["published", "draft"] },
+        "featured": { "type": "boolean" },
+        "pdfUrl": { "type": "string", "maxLength": 1000 },
+        "pdfStoragePath": { "type": "string", "maxLength": 500 },
+        "coverUrl": { "type": "string", "maxLength": 1000 },
+        "coverStoragePath": { "type": "string", "maxLength": 500 },
+        "fileSizeBytes": { "type": "number" },
+        "pageCount": { "type": "number" },
+        "viewsCount": { "type": "number" },
+        "downloadsCount": { "type": "number" },
+        "searchText": { "type": "string", "maxLength": 30000 },
+        "ocrRequired": { "type": "boolean" },
+        "uploadedByUid": { "type": "string", "maxLength": 128 },
+        "uploadedByName": { "type": "string", "maxLength": 120 }
+      },
+      "required": ["id", "title", "author", "language", "categoryId", "categoryName", "permission", "status", "featured", "pdfUrl", "viewsCount", "downloadsCount"]
+    },
+    "LibraryReadingProgress": {
+      "title": "LibraryReadingProgress",
+      "description": "Last-read PDF page and zoom level for a signed-in reader.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 200 },
+        "userUid": { "type": "string", "maxLength": 128 },
+        "bookId": { "type": "string", "maxLength": 128 },
+        "lastPage": { "type": "number" },
+        "totalPages": { "type": "number" },
+        "zoom": { "type": "number" }
+      },
+      "required": ["id", "userUid", "bookId", "lastPage", "totalPages"]
+    },
     "NoticeRecord": {
       "title": "NoticeRecord",
       "description": "Official academy notice.",
@@ -693,6 +756,9 @@
     "/liveClasses/{liveClassId}": { "schema": { "$ref": "#/entities/LiveClassSession" }, "description": "Live classes." },
     "/learningMaterials/{materialId}": { "schema": { "$ref": "#/entities/LearningMaterial" }, "description": "Uploaded study materials." },
     "/library/{libraryId}": { "schema": { "$ref": "#/entities/LibraryResource" }, "description": "Digital library resources." },
+    "/libraryBooks/{bookId}": { "schema": { "$ref": "#/entities/LibraryBook" }, "description": "As-Siddique Digital Islamic Library PDF books catalog." },
+    "/libraryCategories/{categoryId}": { "schema": { "$ref": "#/entities/LibraryCategory" }, "description": "Digital Islamic Library categories and subcategories." },
+    "/libraryReadingProgress/{progressId}": { "schema": { "$ref": "#/entities/LibraryReadingProgress" }, "description": "Per-user last-read page memory for library books." },
     "/notices/{noticeId}": { "schema": { "$ref": "#/entities/NoticeRecord" }, "description": "Academy notices." },
     "/events/{eventId}": { "schema": { "$ref": "#/entities/EventRecord" }, "description": "Academy events." },
     "/gallery/{galleryId}": { "schema": { "$ref": "#/entities/GalleryItem" }, "description": "Photo and video gallery." },

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { withBasePath } from '../lib/assetUrl';
 import { AcademyEmblem } from './AcademyEmblem';
 
 interface TeacherPhotoProps {
@@ -34,7 +35,7 @@ export const TeacherPhoto: React.FC<TeacherPhotoProps> = ({
 
   return (
     <img
-      src={trimmedUrl}
+      src={withBasePath(trimmedUrl)}
       alt={name}
       referrerPolicy="no-referrer"
       loading="lazy"

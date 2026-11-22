@@ -1,3 +1,5 @@
+import { withBasePath } from '../lib/assetUrl';
+
 export type ProgrammeStageId = 'primary' | 'middle' | 'secondary' | 'higher-secondary';
 
 export interface AcademicProgramme {
@@ -70,9 +72,9 @@ export interface NoticeItem {
   issuedBy: string;
 }
 
-export const HERO_MOSQUE_IMAGE = '/src/assets/images/hero_mosque_academy_1795074356108.jpg';
-export const PRINCIPAL_PORTRAIT_IMAGE = '/src/assets/images/principal_scholar_portrait_1795074355746.jpg';
-export const ONLINE_LEARNING_IMAGE = '/src/assets/images/online_learning_session_1795074356262.jpg';
+export const HERO_MOSQUE_IMAGE = withBasePath('/src/assets/images/hero_mosque_academy_1795074356108.jpg');
+export const PRINCIPAL_PORTRAIT_IMAGE = withBasePath('/src/assets/images/principal_scholar_portrait_1795074355746.jpg');
+export const ONLINE_LEARNING_IMAGE = withBasePath('/src/assets/images/online_learning_session_1795074356262.jpg');
 
 export const ACADEMIC_PROGRAMMES: AcademicProgramme[] = [
   {
@@ -303,7 +305,7 @@ export const FACULTY_MEMBERS: FacultyMember[] = [
     qualification: 'Al-Azhar B.A. Usul al-Din · Ijazah in Hafs & Shu’bah',
     experience: '14 Years Teaching',
     classesTaught: 'Class 4 – Class 12',
-    image: '/src/assets/images/teacher_quran_arabic_1795074356458.jpg',
+    image: withBasePath('/src/assets/images/teacher_quran_arabic_1795074356458.jpg'),
     specialization: 'Tajweed Phonetics, Classical Arabic Syntax & Hifz Supervision',
     bio: 'Ustadh Tariq leads the Academy’s Quran and Arabic Wing. Having earned his Ijazah in the Ten Qira’at and a degree from Al-Azhar University, he specializes in guiding young learners toward effortless, heartfelt recitation alongside fluent Arabic comprehension.',
   },
@@ -316,7 +318,7 @@ export const FACULTY_MEMBERS: FacultyMember[] = [
     qualification: 'Ph.D. Organic Chemistry · M.Ed.',
     experience: '12 Years Teaching',
     classesTaught: 'Class 8 – Class 12',
-    image: '/src/assets/images/teacher_science_female_1795074356658.jpg',
+    image: withBasePath('/src/assets/images/teacher_science_female_1795074356658.jpg'),
     specialization: 'Secondary & Higher Secondary Chemistry, Laboratory Inquiry',
     bio: 'Dr. Ayesha directs the Academy’s Science Wing and laboratory curriculum. Her pedagogy connects modern molecular science with wonder at the natural world, mentoring Class 11–12 graduates for top medical and science university placements.',
   },
@@ -329,7 +331,7 @@ export const FACULTY_MEMBERS: FacultyMember[] = [
     qualification: 'M.Sc. Applied Mathematics · B.Tech CS',
     experience: '16 Years Teaching',
     classesTaught: 'Class 7 – Class 12',
-    image: '/src/assets/images/teacher_math_male_1795074356342.jpg',
+    image: withBasePath('/src/assets/images/teacher_math_male_1795074356342.jpg'),
     specialization: 'Higher Calculus, Olympiad Problem-Solving & Algorithms',
     bio: 'With sixteen years guiding secondary and higher-secondary scholars, Prof. Imran oversees Mathematics and Computer Science across both Campus and Live Online divisions, helping students turn abstract proofs into clear intuition.',
   },

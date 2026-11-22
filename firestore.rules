@@ -199,6 +199,69 @@ service cloud.firestore {
         data.lessonProgress is map;
     }
 
+    function isValidLibraryCategory(data) {
+      return data.keys().hasAll(['id', 'name', 'slug', 'subcategories', 'order', 'isActive']) &&
+        data.keys().hasOnly(['id', 'name', 'slug', 'description', 'subcategories', 'order', 'isActive', 'updatedAt']) &&
+        isNonEmptyString(data.id, 1, 128) &&
+        isNonEmptyString(data.name, 1, 120) &&
+        isNonEmptyString(data.slug, 1, 120) &&
+        (!('description' in data) || (data.description is string && data.description.size() <= 400)) &&
+        data.subcategories is list &&
+        data.subcategories.size() <= 40 &&
+        data.order is number &&
+        data.isActive is bool;
+    }
+
+    function isValidLibraryBook(data, bookId) {
+      return data.keys().hasAll([
+          'id', 'title', 'author', 'language', 'categoryId', 'categoryName',
+          'permission', 'status', 'featured', 'pdfUrl', 'viewsCount', 'downloadsCount'
+        ]) &&
+        data.keys().hasOnly([
+          'id', 'title', 'author', 'publisher', 'language', 'categoryId', 'categoryName',
+          'subcategory', 'description', 'tags', 'publicationYear', 'permission', 'status',
+          'featured', 'pdfUrl', 'pdfStoragePath', 'coverUrl', 'coverStoragePath',
+          'fileSizeBytes', 'pageCount', 'viewsCount', 'downloadsCount', 'searchText',
+          'ocrRequired', 'uploadedByUid', 'uploadedByName', 'isSampleBook', 'createdAt', 'updatedAt'
+        ]) &&
+        data.id == bookId &&
+        isNonEmptyString(data.title, 1, 240) &&
+        isNonEmptyString(data.author, 1, 160) &&
+        (!('publisher' in data) || (data.publisher is string && data.publisher.size() <= 160)) &&
+        data.language in ['Bengali', 'Arabic', 'English', 'Urdu', 'Other'] &&
+        isNonEmptyString(data.categoryId, 1, 128) &&
+        isNonEmptyString(data.categoryName, 1, 120) &&
+        (!('subcategory' in data) || (data.subcategory is string && data.subcategory.size() <= 120)) &&
+        (!('description' in data) || (data.description is string && data.description.size() <= 4000)) &&
+        (!('tags' in data) || (data.tags is list && data.tags.size() <= 20)) &&
+        (!('publicationYear' in data) || (data.publicationYear is string && data.publicationYear.size() <= 20)) &&
+        data.permission in ['read_only', 'download', 'both'] &&
+        data.status in ['published', 'draft'] &&
+        data.featured is bool &&
+        isNonEmptyString(data.pdfUrl, 1, 1000) &&
+        (!('pdfStoragePath' in data) || (data.pdfStoragePath is string && data.pdfStoragePath.size() <= 500)) &&
+        (!('coverUrl' in data) || (data.coverUrl is string && data.coverUrl.size() <= 1000)) &&
+        (!('coverStoragePath' in data) || (data.coverStoragePath is string && data.coverStoragePath.size() <= 500)) &&
+        (!('fileSizeBytes' in data) || (data.fileSizeBytes is number && data.fileSizeBytes >= 0)) &&
+        (!('pageCount' in data) || (data.pageCount is number && data.pageCount >= 0)) &&
+        data.viewsCount is number && data.viewsCount >= 0 &&
+        data.downloadsCount is number && data.downloadsCount >= 0 &&
+        (!('searchText' in data) || (data.searchText is string && data.searchText.size() <= 30000)) &&
+        (!('ocrRequired' in data) || data.ocrRequired is bool);
+    }
+
+    function isValidLibraryReadingProgress(data, progressId) {
+      return data.keys().hasAll(['id', 'userUid', 'bookId', 'lastPage', 'totalPages']) &&
+        data.keys().hasOnly(['id', 'userUid', 'bookId', 'lastPage', 'totalPages', 'zoom', 'updatedAt']) &&
+        data.id == progressId &&
+        data.userUid == request.auth.uid &&
+        progressId == request.auth.uid + '_' + data.bookId &&
+        isNonEmptyString(data.bookId, 1, 128) &&
+        data.lastPage is number && data.lastPage >= 1 &&
+        data.totalPages is number && data.totalPages >= 1 &&
+        (!('zoom' in data) || (data.zoom is number && data.zoom >= 0.5 && data.zoom <= 3.0));
+    }
+
     // =========================================================
     // USERS, ROLES & PERMISSIONS
     // =========================================================
@@ -428,6 +491,36 @@ service cloud.firestore {
     match /library/{libraryId} {
       allow get, list: if isActiveUser();
       allow create, update, delete: if isValidId(libraryId) && (isLibrarian() || isTeacher());
+    }
+
+    // As-Siddique Digital Islamic Library (published books readable by visitors/students; drafts private to Admin/Librarian)
+    match /libraryCategories/{categoryId} {
+      allow get, list: if true;
+      allow create, update: if isValidId(categoryId) && isLibrarian() && isValidLibraryCategory(incoming());
+      allow delete: if isValidId(categoryId) && isLibrarian();
+    }
+
+    match /libraryBooks/{bookId} {
+      allow get: if isValidId(bookId) && (existing().status == 'published' || isLibrarian());
+      allow list: if existing().status == 'published' || isLibrarian();
+      allow create: if isValidId(bookId) && isLibrarian() && isValidLibraryBook(incoming(), bookId);
+      allow update: if isValidId(bookId) && isLibrarian() && isValidLibraryBook(incoming(), bookId);
+      allow delete: if isValidId(bookId) && isLibrarian();
+    }
+
+    match /libraryReadingProgress/{progressId} {
+      allow get: if isValidId(progressId) && (
+        isAdmin() ||
+        (isActiveUser() && existing().userUid == request.auth.uid)
+      );
+      allow list: if isAdmin() || (isActiveUser() && existing().userUid == request.auth.uid);
+      allow create: if isValidId(progressId) && isActiveUser() && isValidLibraryReadingProgress(incoming(), progressId);
+      allow update: if isValidId(progressId) && isActiveUser() && isValidLibraryReadingProgress(incoming(), progressId) &&
+        existing().userUid == request.auth.uid && incoming().userUid == existing().userUid;
+      allow delete: if isValidId(progressId) && (
+        isAdmin() ||
+        (isActiveUser() && existing().userUid == request.auth.uid)
+      );
     }
 
     // =========================================================

@@ -7,6 +7,7 @@ export interface TranslationBundle {
     about: string;
     programmes: string;
     courses: string;
+    library: string;
     teachers: string;
     results: string;
     admission: string;
@@ -58,6 +59,7 @@ export const TRANSLATIONS: Record<LanguageCode, TranslationBundle> = {
       about: 'About',
       programmes: 'Programmes',
       courses: 'Courses',
+      library: 'Library',
       teachers: 'Teachers',
       results: 'Results',
       admission: 'Admission',
@@ -107,6 +109,7 @@ export const TRANSLATIONS: Record<LanguageCode, TranslationBundle> = {
       about: 'পরিচিতি',
       programmes: 'পাঠ্যক্রম',
       courses: 'কোর্স',
+      library: 'লাইব্রেরি',
       teachers: 'শিক্ষকমণ্ডলী',
       results: 'ফলাফল',
       admission: 'ভর্তি',
@@ -156,6 +159,7 @@ export const TRANSLATIONS: Record<LanguageCode, TranslationBundle> = {
       about: 'عن الأكاديمية',
       programmes: 'البرامج الدراسية',
       courses: 'الدورات',
+      library: 'المكتبة',
       teachers: 'المعلمون',
       results: 'النتائج',
       admission: 'القبول',

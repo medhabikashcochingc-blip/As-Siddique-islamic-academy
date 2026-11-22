@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Download, Smartphone, X } from 'lucide-react';
 import { usePWAInstall } from '../../hooks/usePWAInstall';
+import { withBasePath } from '../../lib/assetUrl';
 
 interface PWAInstallButtonProps {
   variant?: 'header' | 'portal' | 'compact';
@@ -134,7 +135,7 @@ export const PWAInstallBanner: React.FC = () => {
       <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5 min-w-0">
           <img
-            src="/pwa-192x192.png"
+            src={withBasePath('/pwa-192x192.png')}
             alt="As-Siddique Academy App Icon"
             className="w-8 h-8 rounded-lg border border-[#D9AD43]/50 shrink-0"
           />

@@ -16,7 +16,8 @@ import {
   Trophy,
   Video,
 } from 'lucide-react';
-import { IntegrationStatus } from '../../context/PlatformContext';
+import { Link } from 'react-router-dom';
+import { IntegrationStatus, usePlatform } from '../../context/PlatformContext';
 import {
   downloadFeeReceiptPdf,
   downloadMarksheetPdf,
@@ -92,11 +93,28 @@ export const StudentResourcesSection: React.FC<StudentResourcesSectionProps> = (
   upsertRecord,
   onLaunchCourse,
 }) => {
+  const { libraryBooks } = usePlatform();
   const [searchQuery, setSearchQuery] = useState('');
   const [resultLookup, setResultLookup] = useState('');
   const [activeAssignmentId, setActiveAssignmentId] = useState<string | null>(null);
   const [submissionText, setSubmissionText] = useState('');
   const [statusMessage, setStatusMessage] = useState('');
+
+  const publishedLibraryBooks = useMemo(
+    () =>
+      libraryBooks.filter((b) => {
+        if (b.status !== 'published') return false;
+        const q = searchQuery.trim().toLowerCase();
+        if (!q) return true;
+        return (
+          b.title.toLowerCase().includes(q) ||
+          b.author.toLowerCase().includes(q) ||
+          b.categoryName.toLowerCase().includes(q) ||
+          (b.searchText || '').toLowerCase().includes(q)
+        );
+      }),
+    [libraryBooks, searchQuery]
+  );
 
   const myClassId = myStudent?.classId || 'Class 10';
 
@@ -499,22 +517,69 @@ export const StudentResourcesSection: React.FC<StudentResourcesSectionProps> = (
               <div className="flex items-center gap-2">
                 <BookOpen className="w-5 h-5 text-[#06452C] dark:text-[#D9AD43]" />
                 <h2 className="font-serif text-xl font-semibold text-[#06452C] dark:text-white">
-                  Digital Islamic &amp; Academic PDF Library ({filteredLibrary.length})
+                  As-Siddique Digital Islamic Library ({publishedLibraryBooks.length + filteredLibrary.length})
                 </h2>
               </div>
-              {myTimetable.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() =>
-                    downloadTimetablePdf(`Class Routine ${myClassId}`, myTimetable, settings)
-                  }
-                  className="min-h-[42px] inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#06452C] text-[#F8F1DF] text-xs font-semibold cursor-pointer"
+              <div className="flex flex-wrap items-center gap-2">
+                <Link
+                  to="/library"
+                  className="min-h-[42px] inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#D9AD43] text-[#102D23] text-xs font-bold"
                 >
-                  <Download className="w-4 h-4 text-[#D9AD43]" />
-                  <span>Class Routine PDF</span>
-                </button>
-              )}
+                  <BookOpen className="w-4 h-4" />
+                  <span>Open Full Digital Library</span>
+                </Link>
+                {myTimetable.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      downloadTimetablePdf(`Class Routine ${myClassId}`, myTimetable, settings)
+                    }
+                    className="min-h-[42px] inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#06452C] text-[#F8F1DF] text-xs font-semibold cursor-pointer"
+                  >
+                    <Download className="w-4 h-4 text-[#D9AD43]" />
+                    <span>Class Routine PDF</span>
+                  </button>
+                )}
+              </div>
             </div>
+
+            {publishedLibraryBooks.length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                {publishedLibraryBooks.map((book) => (
+                  <div
+                    key={book.id}
+                    className="p-4 rounded-xl bg-[#F8F1DF]/65 dark:bg-[#081A14] border border-[#D9AD43]/30 flex flex-col justify-between gap-3"
+                  >
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-[#8A6518] dark:text-[#D9AD43]">
+                        {book.categoryName} · {book.language}
+                      </p>
+                      <h3 className="text-sm font-bold text-[#06452C] dark:text-white mt-0.5">
+                        {book.title}
+                      </h3>
+                      <p className="text-xs text-[#5A6D64] dark:text-[#DED7C5] mt-1">
+                        {book.author}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Link
+                        to={`/library/read/${book.id}`}
+                        className="flex-1 min-h-[40px] inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#06452C] text-[#F8F1DF] text-xs font-semibold"
+                      >
+                        <BookOpen className="w-3.5 h-3.5 text-[#D9AD43]" />
+                        <span>Read Online</span>
+                      </Link>
+                      <Link
+                        to={`/library/book/${book.id}`}
+                        className="min-h-[40px] inline-flex items-center justify-center px-3 py-1.5 rounded-lg border border-[#D9AD43]/40 text-xs font-semibold text-[#06452C] dark:text-[#D9AD43]"
+                      >
+                        Details
+                      </Link>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
               {filteredLibrary.map((res) => (

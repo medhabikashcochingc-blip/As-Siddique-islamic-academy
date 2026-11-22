@@ -32,6 +32,7 @@ export const HomePage: React.FC = () => {
     events,
     students,
     courses,
+    libraryBooks,
     classes,
     language,
     submitAdmissionApplication,
@@ -85,6 +86,8 @@ export const HomePage: React.FC = () => {
     }
   };
 
+  const publishedBookCount = libraryBooks.filter((b) => b.status === 'published').length;
+
   const quickPortals = [
     { label: t.shortcuts.courses, sub: `${courses.length} Courses`, to: '/courses', icon: BookOpen },
     { label: t.shortcuts.liveClasses, sub: 'Interactive Sessions', to: '/portal', icon: Video },
@@ -96,7 +99,7 @@ export const HomePage: React.FC = () => {
       icon: GraduationCap,
     },
     { label: t.shortcuts.fees, sub: 'Invoices & Receipts', to: '/portal', icon: CreditCard },
-    { label: t.shortcuts.library, sub: 'Books & Quran PDFs', to: '/portal', icon: Library },
+    { label: t.shortcuts.library, sub: `${publishedBookCount} Books & PDFs`, to: '/library', icon: Library },
   ];
 
   const stageBands = [
