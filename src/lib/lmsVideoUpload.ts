@@ -32,6 +32,12 @@ export interface UploadedLmsVideoResult {
   storagePath: string;
 }
 
+export const APPROVED_PLAYBOOK_EMBED_URL =
+  'https://www.playbook.com/e/as-siddiqueislamicacademy/4RggDwKfDCc5wX4R5uHLA79X?theme=gallery&assetNumber=3&displaySize=medium';
+
+export const APPROVED_PLAYBOOK_IFRAME_TITLE =
+  'As-Siddique Islamic Academy Educational Videos';
+
 export function getLmsVideoStorageStatus(): VideoStorageStatus {
   const bucket = (firebaseConfig.storageBucket || '').trim();
   if (!bucket || !storage) {
@@ -39,10 +45,38 @@ export function getLmsVideoStorageStatus(): VideoStorageStatus {
       configured: false,
       bucket,
       setupMessage:
-        'Firebase Storage is not configured yet. Enable Storage in Firebase Console (Build -> Storage) and deploy storage.rules, or use an embedded YouTube URL.',
+        'Firebase Storage is not configured yet. Enable Storage in Firebase Console (Build -> Storage) and deploy storage.rules, or use the approved Playbook Embedded Video URL.',
     };
   }
   return { configured: true, bucket };
+}
+
+export function isPlaybookUrl(input: string): boolean {
+  const trimmed = (input || '').trim().toLowerCase();
+  if (!trimmed) return false;
+  return trimmed.includes('playbook.com/');
+}
+
+export function isYouTubeUrl(input: string): boolean {
+  const trimmed = (input || '').trim().toLowerCase();
+  if (!trimmed) return false;
+  if (/^[a-zA-Z0-9_-]{11}$/.test((input || '').trim())) return true;
+  return (
+    trimmed.includes('youtube.com/') ||
+    trimmed.includes('youtube-nocookie.com/') ||
+    trimmed.includes('youtu.be/')
+  );
+}
+
+export function resolvePlaybookEmbedUrl(input?: string): string {
+  const trimmed = (input || '').trim();
+  if (!trimmed || !isPlaybookUrl(trimmed)) {
+    return APPROVED_PLAYBOOK_EMBED_URL;
+  }
+  if (trimmed.includes('playbook.com/e/')) {
+    return trimmed;
+  }
+  return APPROVED_PLAYBOOK_EMBED_URL;
 }
 
 export function validateLmsVideoFile(
@@ -95,40 +129,6 @@ export function validateLmsVideoFile(
     extension: finalExt,
     contentType: finalMime,
   };
-}
-
-export function extractYouTubeId(input: string): string | null {
-  const trimmed = (input || '').trim();
-  if (!trimmed) return null;
-
-  // Bare 11-char video ID
-  if (/^[a-zA-Z0-9_-]{11}$/.test(trimmed)) {
-    return trimmed;
-  }
-
-  try {
-    const parsed = new URL(trimmed);
-    const host = parsed.hostname.replace(/^www\./, '').toLowerCase();
-    if (host === 'youtu.be') {
-      const seg = parsed.pathname.split('/').filter(Boolean)[0];
-      return seg && /^[a-zA-Z0-9_-]{11}$/.test(seg) ? seg : null;
-    }
-    if (host.includes('youtube.com') || host.includes('youtube-nocookie.com')) {
-      const vParam = parsed.searchParams.get('v');
-      if (vParam && /^[a-zA-Z0-9_-]{11}$/.test(vParam)) return vParam;
-
-      const segments = parsed.pathname.split('/').filter(Boolean);
-      const embedIdx = segments.findIndex((s) => s === 'embed' || s === 'shorts' || s === 'live');
-      if (embedIdx >= 0 && segments[embedIdx + 1] && /^[a-zA-Z0-9_-]{11}$/.test(segments[embedIdx + 1])) {
-        return segments[embedIdx + 1];
-      }
-    }
-  } catch {
-    // Fallback regex for partial URLs
-  }
-
-  const regexMatch = trimmed.match(/(?:v=|\/embed\/|\/shorts\/|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
-  return regexMatch ? regexMatch[1] : null;
 }
 
 export async function uploadLmsLectureVideo(

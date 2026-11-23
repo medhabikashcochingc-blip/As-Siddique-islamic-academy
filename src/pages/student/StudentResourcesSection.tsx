@@ -17,6 +17,7 @@ import {
   Video,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { EducationalVideosSection } from '../../components/library/EducationalVideosSection';
 import { IntegrationStatus, usePlatform } from '../../context/PlatformContext';
 import {
   downloadFeeReceiptPdf,
@@ -277,7 +278,7 @@ export const StudentResourcesSection: React.FC<StudentResourcesSectionProps> = (
         <div className="flex flex-wrap gap-2">
           {(
             [
-              { id: 'live', label: 'Live & Recorded', icon: Radio },
+              { id: 'live', label: 'Educational Videos & Live', icon: Radio },
               { id: 'notes', label: 'Notes & PDFs', icon: FileText },
               { id: 'results', label: 'Exam Results', icon: Trophy },
               { id: 'homework', label: 'Homework & Fees', icon: ClipboardList },
@@ -310,9 +311,13 @@ export const StudentResourcesSection: React.FC<StudentResourcesSectionProps> = (
         </div>
       )}
 
-      {/* TAB 1: LIVE & RECORDED CLASSES */}
+      {/* TAB 1: EDUCATIONAL VIDEOS, LIVE & RECORDED CLASSES */}
       {activeTab === 'live' && (
         <div className="space-y-6">
+          <div className="rounded-2xl bg-white dark:bg-[#102D23] border border-[#D9AD43]/40 p-5 sm:p-6">
+            <EducationalVideosSection variant="student" />
+          </div>
+
           <section className="rounded-2xl bg-white dark:bg-[#102D23] border border-[#D9AD43]/40 p-5 sm:p-6 space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">

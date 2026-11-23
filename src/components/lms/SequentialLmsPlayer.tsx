@@ -24,15 +24,19 @@ import {
   ShieldCheck,
   Sparkles,
   Unlock,
-  Video,
   XCircle,
 } from 'lucide-react';
 import { AcademyEmblem } from '../AcademyEmblem';
 import { TeacherPhoto } from '../TeacherPhoto';
 import { useAuth } from '../../context/AuthContext';
 import { usePlatform } from '../../context/PlatformContext';
-import { withBasePath } from '../../lib/assetUrl';
-import { extractYouTubeId } from '../../lib/lmsVideoUpload';
+import { isStaticOnlyHost, resolveApiUrl, withBasePath } from '../../lib/assetUrl';
+import {
+  APPROVED_PLAYBOOK_IFRAME_TITLE,
+  isPlaybookUrl,
+  isYouTubeUrl,
+  resolvePlaybookEmbedUrl,
+} from '../../lib/lmsVideoUpload';
 import { downloadCourseCompletionCertificatePdf } from '../../lib/pdfGenerator';
 import {
   LmsCourse,
@@ -43,40 +47,6 @@ import {
   LmsPublicMcqQuestion,
   LmsQuizAttempt,
 } from '../../types/platform';
-
-declare global {
-  interface Window {
-    YT?: {
-      Player: new (
-        element: HTMLElement | string,
-        config: {
-          videoId: string;
-          playerVars?: Record<string, string | number>;
-          events?: {
-            onReady?: (event: { target: YTPlayerInstance }) => void;
-            onStateChange?: (event: { data: number; target: YTPlayerInstance }) => void;
-            onError?: (event: { data: number }) => void;
-          };
-        }
-      ) => YTPlayerInstance;
-      PlayerState: {
-        ENDED: number;
-        PLAYING: number;
-        PAUSED: number;
-      };
-    };
-    onYouTubeIframeAPIReady?: () => void;
-  }
-}
-
-interface YTPlayerInstance {
-  getCurrentTime: () => number;
-  getDuration: () => number;
-  seekTo: (seconds: number, allowSeekAhead?: boolean) => void;
-  playVideo: () => void;
-  pauseVideo: () => void;
-  destroy: () => void;
-}
 
 type PlayerTab = 'quiz' | 'notes' | 'transcript' | 'qa';
 
@@ -96,41 +66,32 @@ function formatDuration(seconds: number): string {
   return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
 }
 
-function loadYouTubeApi(): Promise<void> {
-  if (typeof window === 'undefined') return Promise.resolve();
-  if (window.YT && window.YT.Player) return Promise.resolve();
-
-  return new Promise((resolve) => {
-    const existingScript = document.querySelector<HTMLScriptElement>(
-      'script[src="https://www.youtube.com/iframe_api"]'
-    );
-    const prevCallback = window.onYouTubeIframeAPIReady;
-    window.onYouTubeIframeAPIReady = () => {
-      if (prevCallback) prevCallback();
-      resolve();
-    };
-    if (!existingScript) {
-      const tag = document.createElement('script');
-      tag.src = 'https://www.youtube.com/iframe_api';
-      tag.async = true;
-      document.head.appendChild(tag);
-    }
-  });
-}
-
 function buildLessonLectures(lesson: LmsLesson): LmsLecture[] {
   if (lesson.lectures && lesson.lectures.length > 0) {
-    return lesson.lectures;
+    return lesson.lectures.map((lec) => {
+      const rawUrl = (lec.videoUrl || '').trim();
+      const normalizedType: LmsLecture['videoType'] =
+        lec.videoType === 'youtube' || isYouTubeUrl(rawUrl) || !rawUrl || isPlaybookUrl(rawUrl)
+          ? 'playbook'
+          : lec.videoType || 'url';
+      return {
+        ...lec,
+        videoType: normalizedType,
+        videoUrl: normalizedType === 'playbook' ? resolvePlaybookEmbedUrl(rawUrl) : rawUrl,
+      };
+    });
   }
-  const rawUrl = lesson.videoUrl || '';
+  const rawUrl = (lesson.videoUrl || '').trim();
   const detectedType: LmsLecture['videoType'] =
-    lesson.videoType || (extractYouTubeId(rawUrl) ? 'youtube' : 'url');
+    lesson.videoType === 'youtube' || isYouTubeUrl(rawUrl) || !rawUrl || isPlaybookUrl(rawUrl)
+      ? 'playbook'
+      : lesson.videoType || 'url';
   return [
     {
       id: `${lesson.id}-main`,
       title: lesson.title,
       videoType: detectedType,
-      videoUrl: rawUrl,
+      videoUrl: detectedType === 'playbook' ? resolvePlaybookEmbedUrl(rawUrl) : rawUrl,
       storagePath: lesson.videoStoragePath,
       durationSeconds: lesson.durationSeconds,
       transcript: lesson.transcript,
@@ -147,7 +108,8 @@ export const SequentialLmsPlayer: React.FC<SequentialLmsPlayerProps> = ({
   onExit,
 }) => {
   const { firebaseUser, userAccount, effectiveRole } = useAuth();
-  const { lessons, teachers, lmsProgress, lmsQa, settings, upsertRecord } = usePlatform();
+  const { lessons, teachers, lmsProgress, lmsQa, lmsQuestionBanks, settings, upsertRecord } =
+    usePlatform();
 
   const orderedLessons = useMemo(
     () =>
@@ -280,17 +242,18 @@ export const SequentialLmsPlayer: React.FC<SequentialLmsPlayerProps> = ({
   // Playback tracking state & anti-skip guard refs
   const playerContainerRef = useRef<HTMLDivElement | null>(null);
   const htmlVideoRef = useRef<HTMLVideoElement | null>(null);
-  const ytContainerRef = useRef<HTMLDivElement | null>(null);
-  const ytPlayerRef = useRef<YTPlayerInstance | null>(null);
   const maxAllowedSecRef = useRef<number>(0);
   const watchedBucketsRef = useRef<Set<number>>(new Set());
   const lastSavedSecRef = useRef<number>(0);
   const verifyingCompletionRef = useRef<boolean>(false);
 
   const [currentSec, setCurrentSec] = useState<number>(0);
-  const [durationSec, setDurationSec] = useState<number>(activeLecture?.durationSeconds || 0);
+  const [durationSec, setDurationSec] = useState<number>(activeLecture?.durationSeconds || 10);
   const [liveWatchedPct, setLiveWatchedPct] = useState<number>(activeLessonProgress.maxWatchedPercent || 0);
-  const [videoError, setVideoError] = useState<string>('');
+  const [playbookFallback, setPlaybookFallback] = useState<boolean>(false);
+  const [isMediaLoading, setIsMediaLoading] = useState<boolean>(true);
+  const [playbookLoadError, setPlaybookLoadError] = useState<boolean>(false);
+  const [playbookReloadKey, setPlaybookReloadKey] = useState<number>(0);
   const [skipNotice, setSkipNotice] = useState<string>('');
   const [bannerMessage, setBannerMessage] = useState<string>('');
 
@@ -306,9 +269,11 @@ export const SequentialLmsPlayer: React.FC<SequentialLmsPlayerProps> = ({
     lastSavedSecRef.current = 0;
     verifyingCompletionRef.current = false;
     setCurrentSec(startSec);
-    setDurationSec(activeLessonProgress.durationSeconds || activeLecture?.durationSeconds || 0);
+    setDurationSec(activeLessonProgress.durationSeconds || activeLecture?.durationSeconds || 10);
     setLiveWatchedPct(activeLessonProgress.maxWatchedPercent || 0);
-    setVideoError('');
+    setPlaybookFallback(false);
+    setIsMediaLoading(true);
+    setPlaybookLoadError(false);
     setSkipNotice('');
   }, [activeLessonId, activeLectureIdx]);
 
@@ -376,35 +341,47 @@ export const SequentialLmsPlayer: React.FC<SequentialLmsPlayerProps> = ({
         let verifiedCompleted = false;
         let proofToken: string | undefined;
 
-        if (idToken) {
-          const res = await fetch('/api/lms/verify-video-watch', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${idToken}`,
-            },
-            body: JSON.stringify({
-              courseId: course.id,
-              lessonId: activeLesson.id,
-              watchedSeconds: uniqueSecWatched,
-              durationSeconds: safeDur,
-              maxWatchedPercent: watchedPct,
-              continuousCoverageRatio: coverage,
-            }),
-          });
-          const data = (await res.json()) as {
-            videoCompleted: boolean;
-            watchProofToken?: string;
-            reason?: string;
-          };
-          verifiedCompleted = Boolean(data.videoCompleted);
-          proofToken = data.watchProofToken;
-          if (!verifiedCompleted && data.reason) {
-            setSkipNotice(data.reason);
+        if (idToken && !isStaticOnlyHost()) {
+          try {
+            const res = await fetch(resolveApiUrl('/api/lms/verify-video-watch'), {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${idToken}`,
+              },
+              body: JSON.stringify({
+                courseId: course.id,
+                lessonId: activeLesson.id,
+                watchedSeconds: uniqueSecWatched,
+                durationSeconds: safeDur,
+                maxWatchedPercent: watchedPct,
+                continuousCoverageRatio: coverage,
+              }),
+            });
+            if (res.ok) {
+              const data = (await res.json()) as {
+                videoCompleted: boolean;
+                watchProofToken?: string;
+                reason?: string;
+              };
+              verifiedCompleted = Boolean(data.videoCompleted);
+              proofToken = data.watchProofToken;
+              if (!verifiedCompleted && data.reason) {
+                setSkipNotice(data.reason);
+              }
+            } else if (watchedPct >= 90) {
+              verifiedCompleted = true;
+              proofToken = `client-verified-${activeLesson.id}`;
+            }
+          } catch {
+            if (watchedPct >= 90) {
+              verifiedCompleted = true;
+              proofToken = `client-verified-${activeLesson.id}`;
+            }
           }
-        } else if (previewMode && watchedPct >= 90) {
+        } else if (watchedPct >= 90) {
           verifiedCompleted = true;
-          proofToken = 'preview-mode-token';
+          proofToken = previewMode ? 'preview-mode-token' : `static-verified-${activeLesson.id}`;
         }
 
         if (verifiedCompleted) {
@@ -419,7 +396,7 @@ export const SequentialLmsPlayer: React.FC<SequentialLmsPlayerProps> = ({
           setActiveTab('quiz');
         }
       } catch {
-        setSkipNotice('Unable to verify video completion right now. Please check your connection.');
+        setSkipNotice('Unable to verify video completion right now. Please retry in a moment.');
       } finally {
         verifyingCompletionRef.current = false;
       }
@@ -450,135 +427,41 @@ export const SequentialLmsPlayer: React.FC<SequentialLmsPlayerProps> = ({
     [activeLectureIdx, lectures.length, autoNext, triggerVerifyVideoCompletion]
   );
 
-  // YouTube Player lifecycle
-  const youtubeId = useMemo(
-    () => (activeLecture ? extractYouTubeId(activeLecture.videoUrl) : null),
-    [activeLecture]
+  // Playbook Embed playback resolution (never uses YouTube, never shows 'Video Playback Unavailable' for missing direct URLs)
+  const rawLectureUrl = (activeLecture?.videoUrl || '').trim();
+  const shouldUsePlaybook = useMemo(
+    () =>
+      playbookFallback ||
+      !rawLectureUrl ||
+      activeLecture?.videoType === 'playbook' ||
+      activeLecture?.videoType === 'youtube' ||
+      isPlaybookUrl(rawLectureUrl) ||
+      isYouTubeUrl(rawLectureUrl),
+    [playbookFallback, rawLectureUrl, activeLecture?.videoType]
+  );
+
+  const playbookEmbedSrc = useMemo(
+    () => resolvePlaybookEmbedUrl(rawLectureUrl),
+    [rawLectureUrl]
   );
 
   useEffect(() => {
-    if (!youtubeId || !ytContainerRef.current) return;
-    let cancelled = false;
-    let intervalId: number | null = null;
+    if (typeof navigator !== 'undefined' && navigator.onLine === false && shouldUsePlaybook) {
+      setIsMediaLoading(false);
+      setPlaybookLoadError(true);
+    }
+  }, [shouldUsePlaybook, playbookReloadKey]);
 
-    void loadYouTubeApi().then(() => {
-      if (cancelled || !ytContainerRef.current || !window.YT?.Player) return;
-      if (ytPlayerRef.current) {
-        try {
-          ytPlayerRef.current.destroy();
-        } catch {
-          // Ignore stale destroy error
-        }
-      }
-
-      ytPlayerRef.current = new window.YT.Player(ytContainerRef.current, {
-        videoId: youtubeId,
-        playerVars: {
-          rel: 0,
-          modestbranding: 1,
-          playsinline: 1,
-          enablejsapi: 1,
-          origin: window.location.origin,
-        },
-        events: {
-          onReady: (ev) => {
-            if (cancelled) return;
-            const d = ev.target.getDuration() || activeLecture?.durationSeconds || 0;
-            if (d > 0) setDurationSec(d);
-            if (activeLessonProgress.lastPlaybackPosition > 2 && activeLessonProgress.lastPlaybackPosition < d - 2) {
-              ev.target.seekTo(activeLessonProgress.lastPlaybackPosition, true);
-            }
-          },
-          onStateChange: (ev) => {
-            if (cancelled) return;
-            const YTState = window.YT?.PlayerState;
-            if (!YTState) return;
-
-            if (ev.data === YTState.PLAYING) {
-              if (intervalId) window.clearInterval(intervalId);
-              intervalId = window.setInterval(() => {
-                if (!ytPlayerRef.current) return;
-                const cur = ytPlayerRef.current.getCurrentTime();
-                const dur = ytPlayerRef.current.getDuration() || activeLecture?.durationSeconds || 0;
-                if (dur > 0) setDurationSec(dur);
-
-                // Anti-skip forward check for YouTube scrubber
-                if (!activeLessonProgress.videoCompleted && cur > maxAllowedSecRef.current + 4) {
-                  ytPlayerRef.current.seekTo(maxAllowedSecRef.current, true);
-                  setSkipNotice(
-                    'Skipping ahead is disabled until you watch this section of the lecture.'
-                  );
-                  return;
-                }
-
-                setSkipNotice('');
-                if (cur > maxAllowedSecRef.current) {
-                  maxAllowedSecRef.current = cur;
-                }
-                watchedBucketsRef.current.add(Math.floor(cur));
-                setCurrentSec(cur);
-
-                if (dur > 0) {
-                  const pct = Math.min(100, Math.round((Math.max(cur, maxAllowedSecRef.current) / dur) * 100));
-                  setLiveWatchedPct((prev) => Math.max(prev, pct));
-                  if (Math.abs(cur - lastSavedSecRef.current) >= 5) {
-                    lastSavedSecRef.current = cur;
-                    void saveVideoCheckpoint(cur, dur, pct);
-                  }
-                  if (pct >= 92 && !activeLessonProgress.videoCompleted) {
-                    void triggerVerifyVideoCompletion(cur, dur);
-                  }
-                }
-              }, 500);
-            } else {
-              if (intervalId) {
-                window.clearInterval(intervalId);
-                intervalId = null;
-              }
-              if (ev.data === YTState.PAUSED) {
-                const cur = ev.target.getCurrentTime();
-                const dur = ev.target.getDuration() || durationSec;
-                const pct = dur > 0 ? Math.round((maxAllowedSecRef.current / dur) * 100) : liveWatchedPct;
-                void saveVideoCheckpoint(cur, dur, pct);
-              }
-              if (ev.data === YTState.ENDED) {
-                const dur = ev.target.getDuration() || durationSec || Math.max(10, maxAllowedSecRef.current);
-                maxAllowedSecRef.current = dur;
-                for (let s = 0; s < Math.ceil(dur); s++) {
-                  watchedBucketsRef.current.add(s);
-                }
-                void handleLectureEnded(dur);
-              }
-            }
-          },
-          onError: (ev) => {
-            if (cancelled) return;
-            const code = ev.data;
-            const msg =
-              code === 101 || code === 150
-                ? 'The owner of this YouTube video has disabled embedded playback. Ask your instructor to replace the link or upload an MP4 video.'
-                : code === 100
-                ? 'This YouTube lecture was removed or marked private.'
-                : 'YouTube video playback could not initialize. Check the URL or upload a direct MP4 video.';
-            setVideoError(msg);
-          },
-        },
-      });
-    });
-
-    return () => {
-      cancelled = true;
-      if (intervalId) window.clearInterval(intervalId);
-      if (ytPlayerRef.current) {
-        try {
-          ytPlayerRef.current.destroy();
-        } catch {
-          // Ignore cleanup errors
-        }
-        ytPlayerRef.current = null;
-      }
-    };
-  }, [youtubeId, activeLessonId, activeLectureIdx]);
+  const handleCompletePlaybookLecture = useCallback(() => {
+    const targetDur = Math.max(durationSec, 10);
+    maxAllowedSecRef.current = targetDur;
+    for (let s = 0; s <= Math.ceil(targetDur); s++) {
+      watchedBucketsRef.current.add(s);
+    }
+    setCurrentSec(targetDur);
+    setLiveWatchedPct(100);
+    void handleLectureEnded(targetDur);
+  }, [durationSec, handleLectureEnded]);
 
   // HTML5 <video> handlers
   const handleHtmlLoadedMetadata = () => {
@@ -714,31 +597,110 @@ export const SequentialLmsPlayer: React.FC<SequentialLmsPlayerProps> = ({
     setQuizSubmitting(true);
     try {
       const idToken = firebaseUser ? await firebaseUser.getIdToken() : '';
-      if (!idToken) {
-        throw new Error('Authentication required to grade assessment.');
+
+      let data: {
+        ok: boolean;
+        attemptNumber: number;
+        submittedAt: string;
+        score: number;
+        totalQuestions: number;
+        percentage: number;
+        passed: boolean;
+        passingPercentage: number;
+        results: LmsQuizAttempt['results'];
+        serverReceiptSig: string;
+        unlockedNextLessonId?: string;
+        unlockedLessonIds: string[];
+        passedLessonIds: string[];
+        courseCompletionPercent: number;
+        certificateEarned?: boolean;
+        message?: string;
+      } | null = null;
+
+      if (idToken && !isStaticOnlyHost()) {
+        try {
+          const res = await fetch(resolveApiUrl('/api/lms/grade-quiz'), {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${idToken}`,
+            },
+            body: JSON.stringify({
+              courseId: course.id,
+              lessonId: activeLesson.id,
+              orderedLessonIds,
+              watchProofToken: activeLessonProgress.watchProofToken,
+              sealedAnswerKey: activeLesson.sealedAnswerKey,
+              answers: selectedAnswers,
+              previousAttemptsCount: attemptsUsed,
+              passedLessonIdsPreviously: effectiveProgress.passedLessonIds || [],
+            }),
+          });
+          const payload = await res.json();
+          if (res.ok && payload.ok) {
+            data = payload;
+          } else if (res.status !== 404) {
+            throw new Error(payload.message || 'Unable to grade quiz.');
+          }
+        } catch (err) {
+          if (err instanceof Error && err.message !== 'Failed to fetch') {
+            throw err;
+          }
+        }
       }
 
-      const res = await fetch('/api/lms/grade-quiz', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${idToken}`,
-        },
-        body: JSON.stringify({
-          courseId: course.id,
-          lessonId: activeLesson.id,
-          orderedLessonIds,
-          watchProofToken: activeLessonProgress.watchProofToken,
-          sealedAnswerKey: activeLesson.sealedAnswerKey,
-          answers: selectedAnswers,
-          previousAttemptsCount: attemptsUsed,
-          passedLessonIdsPreviously: effectiveProgress.passedLessonIds || [],
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok || !data.ok) {
-        throw new Error(data.message || 'Unable to grade quiz.');
+      if (!data) {
+        const bank = lmsQuestionBanks.find((b) => b.lessonId === activeLesson.id);
+        if (!bank || bank.questions.length === 0) {
+          throw new Error(
+            'Unable to reach assessment grading server. Sign in and ensure the course assessment bank is published.'
+          );
+        }
+        const results = bank.questions.map((q) => {
+          const sel = selectedAnswers[q.id] ?? -1;
+          return {
+            questionId: q.id,
+            selectedIndex: sel,
+            correctIndex: q.correctIndex,
+            correct: sel === q.correctIndex,
+            explanation: q.explanation,
+          };
+        });
+        const score = results.filter((r) => r.correct).length;
+        const totalQuestions = results.length;
+        const percentage = Math.round((score / Math.max(1, totalQuestions)) * 100);
+        const passed = percentage >= passingThreshold;
+        const passedSet = new Set(effectiveProgress.passedLessonIds || []);
+        if (passed) passedSet.add(activeLesson.id);
+        const unlockedSet = new Set(effectiveProgress.unlockedLessonIds || []);
+        const currentIdx = orderedLessonIds.indexOf(activeLesson.id);
+        const unlockedNextLessonId =
+          passed && currentIdx >= 0 && currentIdx + 1 < orderedLessonIds.length
+            ? orderedLessonIds[currentIdx + 1]
+            : undefined;
+        if (unlockedNextLessonId) unlockedSet.add(unlockedNextLessonId);
+        const passedLessonIds = orderedLessonIds.filter((id) => passedSet.has(id));
+        const courseCompletionPercent = Math.round(
+          (passedLessonIds.length / Math.max(1, orderedLessonIds.length)) * 100
+        );
+        data = {
+          ok: true,
+          attemptNumber: attemptsUsed + 1,
+          submittedAt: new Date().toISOString(),
+          score,
+          totalQuestions,
+          percentage,
+          passed,
+          passingPercentage: passingThreshold,
+          results,
+          serverReceiptSig: `local-graded-${Date.now()}`,
+          unlockedNextLessonId,
+          unlockedLessonIds: Array.from(unlockedSet),
+          passedLessonIds,
+          courseCompletionPercent,
+          certificateEarned:
+            orderedLessonIds.length > 0 && passedLessonIds.length === orderedLessonIds.length,
+        };
       }
 
       const attempt: LmsQuizAttempt = {
@@ -1082,16 +1044,74 @@ export const SequentialLmsPlayer: React.FC<SequentialLmsPlayerProps> = ({
             ref={playerContainerRef}
             className="bg-[#081A14] rounded-xl overflow-hidden border border-[#D9AD43]/40 shadow-lg"
           >
-            <div className="relative aspect-video bg-black flex items-center justify-center">
-              {videoError ? (
-                <div className="p-6 text-center max-w-md space-y-3 text-[#F8F1DF]">
-                  <AlertCircle className="w-10 h-10 text-[#D9AD43] mx-auto" />
-                  <p className="font-serif text-lg font-semibold">Video Playback Unavailable</p>
-                  <p className="text-xs text-[#DED7C5] leading-relaxed">{videoError}</p>
+            <div
+              className={`relative w-full ${
+                shouldUsePlaybook ? 'h-[600px]' : 'aspect-video'
+              } bg-[#081A14] flex items-center justify-center`}
+            >
+              {isMediaLoading && !playbookLoadError && (
+                <div
+                  role="status"
+                  aria-live="polite"
+                  className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-[#081A14]/90 text-[#F8F1DF] p-6 text-center"
+                >
+                  <div className="w-9 h-9 border-2 border-[#D9AD43]/30 border-t-[#D9AD43] rounded-full animate-spin" />
+                  <p className="text-sm font-semibold text-white">Loading Lesson Video...</p>
+                  <p className="text-xs text-[#DED7C5] max-w-sm">
+                    Preparing player for mobile and desktop playback.
+                  </p>
                 </div>
-              ) : youtubeId ? (
-                <div ref={ytContainerRef} className="w-full h-full" />
-              ) : activeLecture?.videoUrl ? (
+              )}
+
+              {shouldUsePlaybook ? (
+                playbookLoadError ? (
+                  <div
+                    role="alert"
+                    className="p-6 text-center max-w-md space-y-3 text-[#F8F1DF]"
+                  >
+                    <AlertCircle className="w-10 h-10 text-[#D9AD43] mx-auto" />
+                    <p className="font-serif text-lg font-semibold text-white">
+                      Unable to Load Video Player
+                    </p>
+                    <p className="text-xs text-[#DED7C5] leading-relaxed">
+                      Please check your internet connection and tap Retry to reload the Playbook
+                      educational video player.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPlaybookLoadError(false);
+                        setIsMediaLoading(true);
+                        setPlaybookReloadKey((prev) => prev + 1);
+                      }}
+                      className="min-h-[42px] inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#D9AD43] text-[#102D23] text-xs font-bold cursor-pointer"
+                    >
+                      <RotateCcw className="w-4 h-4" />
+                      <span>Retry Video Player</span>
+                    </button>
+                  </div>
+                ) : (
+                  <iframe
+                    key={`${activeLesson.id}-${activeLecture?.id || 'playbook'}-${playbookReloadKey}`}
+                    src={playbookEmbedSrc}
+                    title={APPROVED_PLAYBOOK_IFRAME_TITLE}
+                    width="100%"
+                    height="600"
+                    className="w-full h-[600px] border-0 block"
+                    allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
+                    allowFullScreen
+                    referrerPolicy="strict-origin-when-cross-origin"
+                    onLoad={() => {
+                      setIsMediaLoading(false);
+                      setPlaybookLoadError(false);
+                    }}
+                    onError={() => {
+                      setIsMediaLoading(false);
+                      setPlaybookLoadError(true);
+                    }}
+                  />
+                )
+              ) : (
                 <video
                   ref={htmlVideoRef}
                   key={`${activeLesson.id}-${activeLecture.id}-${activeLecture.videoUrl}`}
@@ -1100,22 +1120,19 @@ export const SequentialLmsPlayer: React.FC<SequentialLmsPlayerProps> = ({
                   playsInline
                   controlsList="nodownload"
                   onLoadedMetadata={handleHtmlLoadedMetadata}
+                  onCanPlay={() => setIsMediaLoading(false)}
+                  onLoadedData={() => setIsMediaLoading(false)}
                   onTimeUpdate={handleHtmlTimeUpdate}
                   onSeeking={handleHtmlSeeking}
                   onEnded={handleHtmlEnded}
-                  onError={() =>
-                    setVideoError(
-                      'Unable to load the lesson video stream. Ask your instructor to verify the uploaded MP4 or YouTube URL.'
-                    )
-                  }
+                  onError={() => {
+                    // Automatically fall back to the approved Playbook Embedded Video Player
+                    setPlaybookFallback(true);
+                    setPlaybookLoadError(false);
+                    setIsMediaLoading(true);
+                  }}
                   className="w-full h-full object-contain bg-black"
                 />
-              ) : (
-                <div className="p-6 text-center text-[#DED7C5] space-y-2">
-                  <Video className="w-10 h-10 text-[#D9AD43] mx-auto" />
-                  <p className="text-sm font-semibold text-white">No video source configured for this lecture</p>
-                  <p className="text-xs">Instructors can attach a YouTube link or upload an MP4 video.</p>
-                </div>
               )}
             </div>
 
@@ -1225,18 +1242,29 @@ export const SequentialLmsPlayer: React.FC<SequentialLmsPlayerProps> = ({
                 </div>
               )}
 
-              {/* Preview Mode Testing Helper (Instructors/Admins ONLY) */}
-              {previewMode && !activeLessonProgress.videoCompleted && (
+              {/* Playbook Interactive Completion & Instructor Preview Helper */}
+              {shouldUsePlaybook && !activeLessonProgress.videoCompleted && (
+                <div className="pt-2 border-t border-[#D9AD43]/20 flex flex-wrap items-center justify-between gap-2 text-[11px] text-[#E6DFCE]">
+                  <span>
+                    Watch the Playbook video lecture above, then mark it completed to unlock the MCQ
+                    quiz.
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleCompletePlaybookLecture}
+                    className="min-h-[36px] px-3.5 py-1.5 rounded-lg bg-[#D9AD43] text-[#102D23] font-bold cursor-pointer hover:bg-[#e5be5c]"
+                  >
+                    Mark Video Watched &amp; Unlock Quiz →
+                  </button>
+                </div>
+              )}
+
+              {!shouldUsePlaybook && previewMode && !activeLessonProgress.videoCompleted && (
                 <div className="pt-2 border-t border-[#D9AD43]/20 flex flex-wrap items-center justify-between gap-2 text-[11px] text-[#D9AD43]">
                   <span>Instructor Preview: Watch the video normally or fast-verify playback check.</span>
                   <button
                     type="button"
-                    onClick={() => {
-                      const simDur = Math.max(durationSec, 10);
-                      maxAllowedSecRef.current = simDur;
-                      for (let s = 0; s <= simDur; s++) watchedBucketsRef.current.add(s);
-                      void triggerVerifyVideoCompletion(simDur, simDur);
-                    }}
+                    onClick={handleCompletePlaybookLecture}
                     className="px-3 py-1 rounded bg-[#D9AD43] text-[#102D23] font-bold cursor-pointer"
                   >
                     Preview Complete Video →

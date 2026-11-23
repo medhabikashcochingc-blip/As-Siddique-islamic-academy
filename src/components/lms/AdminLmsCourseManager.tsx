@@ -17,8 +17,10 @@ import { useAuth } from '../../context/AuthContext';
 import { usePlatform } from '../../context/PlatformContext';
 import {
   ALLOWED_LMS_VIDEO_ACCEPT,
-  extractYouTubeId,
+  APPROVED_PLAYBOOK_EMBED_URL,
   getLmsVideoStorageStatus,
+  isPlaybookUrl,
+  isYouTubeUrl,
   removeLmsLectureVideo,
   uploadLmsLectureVideo,
   validateLmsVideoFile,
@@ -103,8 +105,8 @@ export const AdminLmsCourseManager: React.FC<{ canManageLms: boolean }> = ({ can
     {
       id: `lec_${Date.now()}`,
       title: 'Part 1: Main Video Lecture',
-      videoType: 'youtube',
-      videoUrl: '',
+      videoType: 'playbook',
+      videoUrl: APPROVED_PLAYBOOK_EMBED_URL,
     },
   ]);
   const [uploadingLectureIdx, setUploadingLectureIdx] = useState<number | null>(null);
@@ -268,8 +270,8 @@ export const AdminLmsCourseManager: React.FC<{ canManageLms: boolean }> = ({ can
       {
         id: `lec_${Date.now()}`,
         title: 'Part 1: Main Video Lecture',
-        videoType: 'youtube',
-        videoUrl: '',
+        videoType: 'playbook',
+        videoUrl: APPROVED_PLAYBOOK_EMBED_URL,
       },
     ]);
   };
@@ -282,14 +284,26 @@ export const AdminLmsCourseManager: React.FC<{ canManageLms: boolean }> = ({ can
     setLessonPdfUrl(les.pdfUrl || '');
     setLessonTranscript(les.transcript || '');
     if (les.lectures && les.lectures.length > 0) {
-      setLessonLectures(les.lectures);
+      setLessonLectures(
+        les.lectures.map((lec) => {
+          const isLegacyYt = lec.videoType === 'youtube' || isYouTubeUrl(lec.videoUrl);
+          return isLegacyYt
+            ? { ...lec, videoType: 'playbook', videoUrl: APPROVED_PLAYBOOK_EMBED_URL }
+            : lec;
+        })
+      );
     } else {
+      const rawUrl = les.videoUrl || '';
+      const resolvedType: LmsLecture['videoType'] =
+        les.videoType === 'youtube' || isYouTubeUrl(rawUrl) || isPlaybookUrl(rawUrl) || !rawUrl
+          ? 'playbook'
+          : les.videoType || 'url';
       setLessonLectures([
         {
           id: `lec_${Date.now()}`,
           title: les.title,
-          videoType: les.videoType || (extractYouTubeId(les.videoUrl || '') ? 'youtube' : 'url'),
-          videoUrl: les.videoUrl || '',
+          videoType: resolvedType,
+          videoUrl: resolvedType === 'playbook' ? APPROVED_PLAYBOOK_EMBED_URL : rawUrl,
           storagePath: les.videoStoragePath,
         },
       ]);
@@ -304,15 +318,19 @@ export const AdminLmsCourseManager: React.FC<{ canManageLms: boolean }> = ({ can
     setErrorMsg('');
 
     const validLectures = lessonLectures
-      .filter((l) => l.videoUrl.trim().length > 0)
       .map((l, idx) => ({
         ...l,
         title: l.title.trim() || `Lecture Part ${idx + 1}`,
-        videoUrl: l.videoUrl.trim(),
-      }));
+        videoType: l.videoType === 'youtube' ? ('playbook' as const) : l.videoType,
+        videoUrl:
+          l.videoType === 'playbook' || l.videoType === 'youtube'
+            ? l.videoUrl.trim() || APPROVED_PLAYBOOK_EMBED_URL
+            : l.videoUrl.trim(),
+      }))
+      .filter((l) => l.videoUrl.length > 0);
 
     if (validLectures.length === 0) {
-      setErrorMsg('Please attach at least one YouTube URL, uploaded video, or direct MP4 link.');
+      setErrorMsg('Please attach a Playbook Embed URL, uploaded video, or direct MP4 link.');
       return;
     }
 
@@ -1056,8 +1074,8 @@ export const AdminLmsCourseManager: React.FC<{ canManageLms: boolean }> = ({ can
                           {
                             id: `lec_${Date.now()}`,
                             title: `Part ${prev.length + 1}: Video Lecture`,
-                            videoType: 'youtube',
-                            videoUrl: '',
+                            videoType: 'playbook',
+                            videoUrl: APPROVED_PLAYBOOK_EMBED_URL,
                           },
                         ])
                       }
@@ -1074,8 +1092,9 @@ export const AdminLmsCourseManager: React.FC<{ canManageLms: boolean }> = ({ can
                   )}
 
                   {lessonLectures.map((lec, idx) => {
-                    const ytId =
-                      lec.videoType === 'youtube' ? extractYouTubeId(lec.videoUrl) : null;
+                    const validPlaybook =
+                      lec.videoType === 'playbook' &&
+                      (!lec.videoUrl.trim() || isPlaybookUrl(lec.videoUrl));
                     return (
                       <div
                         key={lec.id}
@@ -1109,22 +1128,27 @@ export const AdminLmsCourseManager: React.FC<{ canManageLms: boolean }> = ({ can
                         </div>
 
                         <select
-                          value={lec.videoType}
-                          onChange={(e) =>
+                          value={lec.videoType === 'youtube' ? 'playbook' : lec.videoType}
+                          onChange={(e) => {
+                            const nextType = e.target.value as 'playbook' | 'upload' | 'url';
                             setLessonLectures((prev) =>
                               prev.map((item, i) =>
                                 i === idx
                                   ? {
                                       ...item,
-                                      videoType: e.target.value as 'youtube' | 'upload' | 'url',
+                                      videoType: nextType,
+                                      videoUrl:
+                                        nextType === 'playbook' && !isPlaybookUrl(item.videoUrl)
+                                          ? APPROVED_PLAYBOOK_EMBED_URL
+                                          : item.videoUrl,
                                     }
                                   : item
                               )
-                            )
-                          }
+                            );
+                          }}
                           className="w-full px-2.5 py-1.5 text-xs bg-[#F8F1DF] dark:bg-[#081A14] border border-[#D9AD43]/30 rounded"
                         >
-                          <option value="youtube">YouTube Embedded Video (URL or ID)</option>
+                          <option value="playbook">Playbook Embedded Video (Approved Player)</option>
                           <option value="upload">Upload Video from Device (MP4 / WEBM / MOV)</option>
                           <option value="url">Direct MP4 / Web Video URL</option>
                         </select>
@@ -1160,8 +1184,8 @@ export const AdminLmsCourseManager: React.FC<{ canManageLms: boolean }> = ({ can
                             <input
                               type="text"
                               placeholder={
-                                lec.videoType === 'youtube'
-                                  ? 'Paste YouTube URL (e.g. https://youtu.be/...) or 11-char ID'
+                                lec.videoType === 'playbook' || lec.videoType === 'youtube'
+                                  ? APPROVED_PLAYBOOK_EMBED_URL
                                   : 'Direct MP4 URL (e.g. https://... or /media/...)'
                               }
                               value={lec.videoUrl}
@@ -1174,17 +1198,17 @@ export const AdminLmsCourseManager: React.FC<{ canManageLms: boolean }> = ({ can
                               }
                               className="w-full px-2.5 py-1.5 text-xs bg-[#F8F1DF] dark:bg-[#081A14] border border-[#D9AD43]/30 rounded"
                             />
-                            {lec.videoType === 'youtube' && lec.videoUrl.trim() && (
+                            {(lec.videoType === 'playbook' || lec.videoType === 'youtube') && (
                               <p
                                 className={`text-[11px] ${
-                                  ytId
+                                  validPlaybook
                                     ? 'text-[#06452C] dark:text-[#34D399]'
                                     : 'text-[#8A6518] dark:text-[#D9AD43]'
                                 }`}
                               >
-                                {ytId
-                                  ? `Embedded YouTube Video ID detected: ${ytId}`
-                                  : 'Enter a valid YouTube link or 11-character video ID.'}
+                                {validPlaybook
+                                  ? 'Playbook Embedded Video Player active (no YouTube dependency).'
+                                  : 'Leave blank or paste an approved playbook.com/e/... embed URL.'}
                               </p>
                             )}
                           </div>

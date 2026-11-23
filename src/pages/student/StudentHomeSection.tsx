@@ -131,8 +131,8 @@ export const StudentHomeSection: React.FC<StudentHomeSectionProps> = ({
       <section className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
           {
-            label: 'Live & Recorded',
-            sub: 'Daily Classes & Archive',
+            label: 'Educational Videos',
+            sub: 'Playbook Archive & Live',
             icon: Radio,
             onClick: () => onNavigateSection('resources', 'live'),
           },

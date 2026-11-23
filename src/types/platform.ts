@@ -353,7 +353,7 @@ export interface LmsCourse {
 export interface LmsLecture {
   id: string;
   title: string;
-  videoType: 'youtube' | 'upload' | 'url';
+  videoType: 'playbook' | 'upload' | 'url' | 'youtube';
   videoUrl: string;
   storagePath?: string;
   durationSeconds?: number;
@@ -390,7 +390,7 @@ export interface LmsLesson {
   chapterTitle: string;
   title: string;
   order: number;
-  videoType?: 'youtube' | 'upload' | 'url';
+  videoType?: 'playbook' | 'upload' | 'url' | 'youtube';
   videoUrl?: string;
   videoStoragePath?: string;
   durationSeconds?: number;

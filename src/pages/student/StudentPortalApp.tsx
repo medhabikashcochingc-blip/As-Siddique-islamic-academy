@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   Bell,
   BookOpen,
@@ -50,7 +50,7 @@ const DESKTOP_NAV: Array<{
   { key: 'home', label: 'Home', icon: Home },
   { key: 'program', label: 'Program', icon: GraduationCap },
   { key: 'courses', label: 'Courses', icon: BookOpen },
-  { key: 'resources', label: 'Resources', icon: FileText },
+  { key: 'resources', label: 'Videos & Resources', icon: Radio },
   { key: 'teachers', label: 'Teachers', icon: Users },
   { key: 'contact', label: 'Contact', icon: MessageSquare },
 ];
@@ -71,6 +71,7 @@ export const StudentPortalApp: React.FC<StudentPortalAppProps> = ({
   embeddedPreview = false,
 }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { firebaseUser, userAccount, effectiveRole, logout } = useAuth();
   const {
     settings,
@@ -101,10 +102,33 @@ export const StudentPortalApp: React.FC<StudentPortalAppProps> = ({
     upsertRecord,
   } = usePlatform();
 
-  const [activeSection, setActiveSection] = useState<StudentSectionKey>(
-    embeddedPreview ? 'program' : 'home'
-  );
-  const [resourceTab, setResourceTab] = useState<StudentResourceTab>('live');
+  const [activeSection, setActiveSection] = useState<StudentSectionKey>(() => {
+    if (embeddedPreview) return 'program';
+    const sub = location.pathname.replace(/^\/student\/?/, '').toLowerCase();
+    if (sub.startsWith('program')) return 'program';
+    if (sub.startsWith('courses')) return 'courses';
+    if (
+      sub.startsWith('videos') ||
+      sub.startsWith('educational-videos') ||
+      sub.startsWith('live') ||
+      sub.startsWith('resources') ||
+      sub.startsWith('notes') ||
+      sub.startsWith('results') ||
+      sub.startsWith('homework')
+    ) {
+      return 'resources';
+    }
+    if (sub.startsWith('teachers')) return 'teachers';
+    if (sub.startsWith('contact')) return 'contact';
+    return 'home';
+  });
+  const [resourceTab, setResourceTab] = useState<StudentResourceTab>(() => {
+    const sub = location.pathname.replace(/^\/student\/?/, '').toLowerCase();
+    if (sub.startsWith('notes') || sub.startsWith('library')) return 'notes';
+    if (sub.startsWith('results')) return 'results';
+    if (sub.startsWith('homework')) return 'homework';
+    return 'live';
+  });
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
@@ -112,6 +136,44 @@ export const StudentPortalApp: React.FC<StudentPortalAppProps> = ({
     course: LmsCourse;
     lessonId?: string;
   } | null>(null);
+
+  useEffect(() => {
+    if (embeddedPreview) return;
+    const sub = location.pathname.replace(/^\/student\/?/, '').toLowerCase();
+    if (!sub) return;
+    if (sub.startsWith('program')) {
+      setActiveSection('program');
+      setActivePlayer(null);
+    } else if (sub.startsWith('courses')) {
+      setActiveSection('courses');
+      setActivePlayer(null);
+    } else if (sub.startsWith('videos') || sub.startsWith('educational-videos') || sub.startsWith('live')) {
+      setActiveSection('resources');
+      setResourceTab('live');
+      setActivePlayer(null);
+    } else if (sub.startsWith('notes') || sub.startsWith('library')) {
+      setActiveSection('resources');
+      setResourceTab('notes');
+      setActivePlayer(null);
+    } else if (sub.startsWith('results')) {
+      setActiveSection('resources');
+      setResourceTab('results');
+      setActivePlayer(null);
+    } else if (sub.startsWith('homework')) {
+      setActiveSection('resources');
+      setResourceTab('homework');
+      setActivePlayer(null);
+    } else if (sub.startsWith('resources')) {
+      setActiveSection('resources');
+      setActivePlayer(null);
+    } else if (sub.startsWith('teachers')) {
+      setActiveSection('teachers');
+      setActivePlayer(null);
+    } else if (sub.startsWith('contact')) {
+      setActiveSection('contact');
+      setActivePlayer(null);
+    }
+  }, [location.pathname, embeddedPreview]);
 
   const isSignedIn = Boolean(firebaseUser && userAccount);
 
@@ -127,7 +189,9 @@ export const StudentPortalApp: React.FC<StudentPortalAppProps> = ({
     }
     const byUid = students.find((s) => s.studentUid === userAccount.uid);
     if (byUid) return byUid;
-    return embeddedPreview || userAccount.role === 'super_admin' ? students[0] : undefined;
+    return embeddedPreview || ['super_admin', 'admin', 'principal', 'teacher'].includes(userAccount.role)
+      ? students[0]
+      : undefined;
   }, [students, userAccount, embeddedPreview]);
 
   const progressByCourse = useMemo(() => {
@@ -536,7 +600,7 @@ export const StudentPortalApp: React.FC<StudentPortalAppProps> = ({
                   className="w-full min-h-[42px] px-3.5 py-2 rounded-xl flex items-center gap-3 text-xs font-medium text-[#E6DFCE] hover:bg-[#102D23] cursor-pointer"
                 >
                   <Radio className="w-4 h-4 text-[#D9AD43]" />
-                  <span>Live &amp; Recorded Classes</span>
+                  <span>Educational Videos &amp; Live</span>
                 </button>
                 <button
                   type="button"

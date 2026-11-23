@@ -65,6 +65,7 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleMeta> = {
       'view_audit_logs',
       'view_reports',
       'teacher_portal',
+      'student_portal',
     ],
   },
   admin: {
@@ -95,6 +96,7 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleMeta> = {
       'manage_users_roles',
       'view_audit_logs',
       'view_reports',
+      'student_portal',
     ],
   },
   principal: {
@@ -117,6 +119,7 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleMeta> = {
       'manage_cms_content',
       'view_audit_logs',
       'view_reports',
+      'student_portal',
     ],
   },
   teacher: {
@@ -125,6 +128,7 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleMeta> = {
     description: 'Assigned classes, attendance entry, homework, LMS lessons, and marks entry.',
     permissions: [
       'teacher_portal',
+      'student_portal',
       'manage_attendance',
       'manage_homework_assignments',
       'manage_lms',
