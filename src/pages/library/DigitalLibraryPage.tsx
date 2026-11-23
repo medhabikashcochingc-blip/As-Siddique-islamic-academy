@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { BookOpen, FolderOpen, Search, ShieldCheck, SlidersHorizontal, Sparkles } from 'lucide-react';
+import { BookOpen, FolderOpen, Search, ShieldCheck, SlidersHorizontal, Sparkles, Video } from 'lucide-react';
 import { BookCoverCard } from '../../components/library/BookCoverCard';
+import { EducationalVideosSection } from '../../components/library/EducationalVideosSection';
 import { useAuth } from '../../context/AuthContext';
 import { usePlatform } from '../../context/PlatformContext';
 import { LIBRARY_HERO_IMAGE } from '../../lib/defaultData';
@@ -180,6 +181,16 @@ export const DigitalLibraryPage: React.FC<{ initialSearchFocus?: boolean }> = ({
                   {publishedBooks.length}
                 </p>
               </div>
+              <button
+                type="button"
+                onClick={() => {
+                  document.getElementById('educational-videos')?.scrollIntoView({ behavior: 'smooth' });
+                }}
+                className="min-h-[46px] inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#102D23]/90 border border-[#D9AD43]/45 text-[#F8F1DF] text-xs font-bold hover:border-[#D9AD43] transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+              >
+                <Video className="w-4 h-4 text-[#D9AD43]" />
+                <span>Educational Videos</span>
+              </button>
               {canManageLib && (
                 <Link
                   to="/portal"
@@ -505,6 +516,9 @@ export const DigitalLibraryPage: React.FC<{ initialSearchFocus?: boolean }> = ({
             )}
           </div>
         )}
+
+        {/* Embedded Playbook Educational Videos Gallery */}
+        <EducationalVideosSection />
       </div>
     </div>
   );
